@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package com.silhouette.api.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Address service provides functions for managing addresses.
+service Address {
+
+    // GetUserAddress retrieves the address for a specific user
+    rpc GetUserAddress(GetUserAddressRequest) returns (Address) {}
+
+    // creates/adds a new address for a user
+    rpc CreateAddress(CreateAddressRequest) returns (Address) {}
+
+    // updates an existing address for a user
+    rpc UpdateAddress(UpdateAddressRequest) returns (Address) {}
+
+    // deletes an address for a user
+    rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty) {}
+}
+
+// Address represents a physical or mailing address.
+message Address {
+    string username = 1;
+    string address_uuid = 2;
+    string street_address = 3;
+    string street_address_2 = 4;
+    string city = 5;
+    string state_province = 6;
+    string postal_code = 7;
+    string country = 8;
+    bool is_current = 9;
+    google.protobuf.Timestamp updated_at = 10;
+    google.protobuf.Timestamp created_at = 11;
+}
+
+// GetUserAddressRequest is a model for the request message for 
+// retrieving a user's address.
+message GetUserAddressRequest {
+    string username = 1;
+}
+
+// CreateAddressRequest is a model for the request message for 
+//creating a new address.
+message CreateAddressRequest {
+    string username = 1;
+    string street_address = 2;
+    string street_address_2 = 3;
+    string city = 4;
+    string state_province = 5;
+    string postal_code = 6;
+    string country = 7;
+    bool is_current = 8;
+}
+
+// UpdateRoomeRequest is a model for the request message for 
+//updating an address.
+message UpdateAddressRequest {
+    string username = 1;
+    string address_uuid = 2;
+    string street_address = 3;
+    string street_address_2 = 4;
+    string city = 5;
+    string state_province = 6;
+    string postal_code = 7;
+    string country = 8;
+    bool is_current = 9;
+}
+
+// DeleteAddressRequest is a model for the request message for 
+// deleting a user's address.
+message DeleteAddressRequest {
+    string username = 1;
+    string address_uuid = 2;
+}

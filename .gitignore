@@ -22,3 +22,18 @@ go.work
 
 *.pem
 certs/
+
+# Environment files
+.env
+.env.*
+*.local
+
+# Go
+build/
+coverage.out
+build-errors.log
+
+# Generated code (protobuf, sqlc)
+**/*.pb.go
+**/*.pb.gw.go
+internal/storage/sql/sqlc/*.go

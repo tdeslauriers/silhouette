@@ -1,3 +1,3 @@
-module silhouette
+module github.com/tdeslauriers/silhouette
 
-go 1.22.1
+go 1.25.4

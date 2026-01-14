@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package com.silhouette.api.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Phone service provides operations for managing user phone information.
+service Phone {
+
+    // GetUserPhone retrieves the phone information for a specific user
+    rpc GetUserPhone(GetUserPhoneRequest) returns (Phone) {}
+
+    // creates/adds a new phone information for a user
+    rpc CreatePhone(CreatePhoneRequest) returns (Phone) {}
+
+    // updates an existing phone information for a user
+    rpc UpdatePhone(UpdatePhoneRequest) returns (Phone) {}
+
+    // deletes a phone information for a user
+    rpc DeletePhone(DeletePhoneRequest) returns (google.protobuf.Empty) {}
+
+}
+
+// Phone represents a user's phone information.
+message Phone {
+    string username = 1;
+    string phone_uuid = 2;
+    string country_code = 3;
+    string phone_number = 4;
+    string extension = 5;
+    string phone_type = 6;
+    bool is_current = 7;
+    google.protobuf.Timestamp updated_at = 8;
+    google.protobuf.Timestamp created_at = 9;
+
+}
+
+// GetUserPhoneRequest is a model for the request message for 
+// retrieving a user's phone information.
+message GetUserPhoneRequest {
+    string username = 1;
+}
+
+// CreatePhoneRequest is a model for the request message for 
+// creating a new phone record for a user.
+message CreatePhoneRequest {
+    string username = 1;
+    string country_code = 2;
+    string phone_number = 3;
+    string extension = 4;
+    string phone_type = 5;
+}
+
+// UpdatePhoneRequest is a model for the request message for 
+// updating an existing phone record for a user.
+message UpdatePhoneRequest {
+    string username = 1;
+    string phone_uuid = 2;
+    string country_code = 3;
+    string phone_number = 4;
+    string extension = 5;
+    string phone_type = 6;
+    bool is_current = 7;
+}
+
+// DeletePhoneRequest is a model for the request message for 
+// deleting a user's phone record.
+message DeletePhoneRequest {
+    string username = 1;
+    string phone_uuid = 2;
+}
+
+
+

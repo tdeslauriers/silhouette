@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    queries: "internal/storage/sql/queries/"
+    schema: "internal/storage/sql/migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/storage/sql/sqlc"
+        emit_json_tags: true
+        emit_prepared_queries: true
+        emit_interface: true
+        emit_exact_table_names: false
