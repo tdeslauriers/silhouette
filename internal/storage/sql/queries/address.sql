@@ -28,9 +28,9 @@ INSERT INTO address (
     sqlc.arg("city"), 
     sqlc.arg("state"), 
     sqlc.arg("zip"), 
-    sqlc.arg("country")
-    sqlc.arg("is_current")
-    sqlc.arg("updated_at")
+    sqlc.arg("country"),
+    sqlc.arg("is_current"),
+    sqlc.arg("updated_at"),
     sqlc.arg("created_at")
 );
 
@@ -42,8 +42,8 @@ SET
     city = sqlc.arg("city"),
     state = sqlc.arg("state"),
     zip = sqlc.arg("zip"),
-    country = sqlc.arg("country")
-    is_current = sqlc.arg("is_current")
+    country = sqlc.arg("country"),
+    is_current = sqlc.arg("is_current"),
     updated_at = sqlc.arg("updated_at")
 WHERE uuid = sqlc.arg("uuid");
 

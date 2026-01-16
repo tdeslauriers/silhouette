@@ -1,6 +1,6 @@
 -- name: FindAllPhones :many
 SELECT * 
-FROM phones;
+FROM phone;
 
 -- name: FindPhoneByUserIndex :one
 SELECT p.* 

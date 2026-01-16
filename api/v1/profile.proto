@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package com.silhouette.api.v1;
+
+import "address.proto";
+import "phone.proto";
+
+// Profiles service provide functions for managing user profiles
+service Profiles {
+  
+    // CreateProfile creates a new user profile. 
+    // This should happen during user registration.
+    rpc CreateProfile(CreateProfileRequest) returns (Profile);
+
+    // GetProfile returns the entire silhouette profile by username including 
+    // address and phone. 
+    rpc GetProfile(GetProfileRequest) returns (Profile);
+
+    // UpdateProfile updates an existing user profile.
+    // This will not include an update of address or phone,
+    // Those will be a separate call
+    rpc UpdateProfile(UpdateProfileRequest) returns (Profile);
+}
+
+// Profile is a model representing a user's site profile attributes.
+// This will include ancillary attributes like nickname not included in
+// the identity service account data, as well as UI preferences, etc.
+message Profile {
+  string username = 1;
+  string nick_name = 2;
+  bool dark_mode = 3;
+  Address address = 4;
+  Phone phone = 5;
+}
+
+// CreateProfileRequest is the request message for creating a new user profile.
+message CreateProfileRequest {
+    string username = 1;
+    string nick_name = 2;
+    // darkmode enabled by default
+    // address and phone not collected at registration
+}
+
+// GetProfileRequest is the request message for retrieving a user profile by username.
+message GetProfileRequest {
+    string username = 1;
+}
+
+// UpdateProfileRequest updates a the fields in a user profile by username,
+// but does not include phone or address updates.   
+message UpdateProfileRequest {
+    // username is the search criteria, username is immutable
+    string username = 1;
+
+    // nick_name is updatable
+    string nick_name = 2;
+
+    // dark_mode is updatable
+    bool dark_mode = 3;
+}

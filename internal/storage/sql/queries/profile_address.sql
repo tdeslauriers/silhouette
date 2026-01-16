@@ -11,10 +11,10 @@ INSERT INTO profile_address (
     sqlc.arg("created_at")
 );
 
--- name: DeleteByProfileUuid :exec
+-- name: DeleteProfileAddressByProfileUuid :exec
 DELETE FROM profile_address
 WHERE profile_uuid = sqlc.arg("profile_uuid");
 
--- name: DeleteByAddressUuid :exec
+-- name: DeleteProfileAddressByAddressUuid :exec
 DELETE FROM profile_address
 WHERE address_uuid = sqlc.arg("address_uuid");

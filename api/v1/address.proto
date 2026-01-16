@@ -5,8 +5,8 @@ package com.silhouette.api.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-// Address service provides functions for managing addresses.
-service Address {
+// Addresses service provides functions for managing addresses.
+service Addresses {
 
     // GetUserAddress retrieves the address for a specific user
     rpc GetUserAddress(GetUserAddressRequest) returns (Address) {}

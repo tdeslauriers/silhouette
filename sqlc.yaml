@@ -8,6 +8,6 @@ sql:
         package: "sqlc"
         out: "internal/storage/sql/sqlc"
         emit_json_tags: true
-        emit_prepared_queries: true
+        emit_prepared_queries: false
         emit_interface: true
         emit_exact_table_names: false
