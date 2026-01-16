@@ -53,6 +53,8 @@ func (s *addressStore) GetAddress(ctx context.Context, username string) (*sqlc.A
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("address not found for user %s", username)
+		} else {
+			return nil, err
 		}
 	}
 
