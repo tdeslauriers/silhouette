@@ -182,7 +182,7 @@ func (s *addressStore) decryptAddress(address sqlc.Address) (*sqlc.Address, erro
 
 	return &sqlc.Address{
 		AddressLine1: sql.NullString{String: <-line1Ch, Valid: true},
-		AddressLine2: sql.NullString{String: <-line2Ch, Valid: true},
+		AddressLine2: sql.NullString{String: <-line2Ch, Valid: true}, // converted from nil to empty string which is fine
 		City:         sql.NullString{String: <-cityCh, Valid: true},
 		State:        sql.NullString{String: <-stateCh, Valid: true},
 		Zip:          sql.NullString{String: <-zipCh, Valid: true},
