@@ -114,15 +114,6 @@ func (s *addressStore) decryptAddress(address sqlc.Address) (*sqlc.Address, erro
 		errCh <- errors.New("city field is empty so it cannot be decrypted")
 	}
 
-	wg.Add(1)
-	go s.cryptor.DecryptField(
-		"state",
-		address.State.String,
-		stateCh,
-		errCh,
-		&wg,
-	)
-
 	if address.State.Valid {
 		wg.Add(1)
 		go s.cryptor.DecryptField(
