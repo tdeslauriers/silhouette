@@ -1,4 +1,15 @@
--- name: FindProfileByUserIndex :one
+-- name: FindProfile :one
+SELECT 
+    uuid,
+    username,
+    nick_name,
+    dark_mode,
+    updated_at,
+    created_at
+FROM profile
+WHERE user_index = sqlc.arg("user_index");
+
+-- name: FindCompleteProfile :one
 SELECT 
     p.uuid AS profile_uuid, 
     p.username,
@@ -20,6 +31,7 @@ SELECT
     ph.country_code AS phone_country_code,
     ph.phone_number,
     ph.extension,
+    ph.phone_type,
     ph.is_current AS phone_is_current,
     ph.updated_at AS phone_updated_at,
     ph.created_at AS phone_created_at
