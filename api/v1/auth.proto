@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package com.silhouette.api.v1;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+    AuthConfig auth_config = 50001;
+}
+
+// AuthConfig defines the authentication configuration for a gRPC service or method.
+message AuthConfig {
+    // required_scopes lists the OAuth2 scopes required to access the service or method.
+    repeated string required_scopes = 1;
+
+    // allow_self_access indicates whether a user is allowed to access their own resources
+    bool allow_self_access = 2;
+
+}
