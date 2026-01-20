@@ -5,20 +5,42 @@ package com.silhouette.api.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+import "auth.proto";
+
 // Addresses service provides functions for managing addresses.
 service Addresses {
 
     // GetUserAddress retrieves the address for a specific user
-    rpc GetUserAddress(GetUserAddressRequest) returns (Address) {}
+    rpc GetUserAddress(GetUserAddressRequest) returns (Address) {
+        option (auth_config) = {
+            required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
+            allow_self_access: true
+        };
+    };
 
     // creates/adds a new address for a user
-    rpc CreateAddress(CreateAddressRequest) returns (Address) {}
+    rpc CreateAddress(CreateAddressRequest) returns (Address) {
+        option (auth_config) = {
+            required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
+            allow_self_access: true
+        };
+    };
 
     // updates an existing address for a user
-    rpc UpdateAddress(UpdateAddressRequest) returns (Address) {}
+    rpc UpdateAddress(UpdateAddressRequest) returns (Address) {
+        option (auth_config) = {
+            required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
+            allow_self_access: true
+        };
+    };
 
     // deletes an address for a user
-    rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty) {
+        option (auth_config) = {
+            required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
+            allow_self_access: true
+        };
+    };
 }
 
 // Address represents a physical or mailing address.
