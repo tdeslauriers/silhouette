@@ -14,7 +14,7 @@ service Addresses {
     rpc GetUserAddress(GetUserAddressRequest) returns (Address) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -22,7 +22,7 @@ service Addresses {
     rpc CreateAddress(CreateAddressRequest) returns (Address) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -30,7 +30,7 @@ service Addresses {
     rpc UpdateAddress(UpdateAddressRequest) returns (Address) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -38,7 +38,7 @@ service Addresses {
     rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 }

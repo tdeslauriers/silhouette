@@ -10,10 +10,11 @@ extend google.protobuf.MethodOptions {
 
 // AuthConfig defines the authentication configuration for a gRPC service or method.
 message AuthConfig {
+
     // required_scopes lists the OAuth2 scopes required to access the service or method.
     repeated string required_scopes = 1;
 
-    // allow_self_access indicates whether a user is allowed to access their own resources
-    bool allow_self_access = 2;
+    // self_access_allowed indicates whether a user is allowed to access their own resources
+    bool self_access_allowed = 2;
 
 }

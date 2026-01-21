@@ -14,7 +14,7 @@ service Phones {
     rpc GetUserPhone(GetUserPhoneRequest) returns (Phone) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:phone:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -22,7 +22,7 @@ service Phones {
     rpc CreatePhone(CreatePhoneRequest) returns (Phone) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:phone:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -30,7 +30,7 @@ service Phones {
     rpc UpdatePhone(UpdatePhoneRequest) returns (Phone) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:phone:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -38,7 +38,7 @@ service Phones {
     rpc DeletePhone(DeletePhoneRequest) returns (google.protobuf.Empty) {
         option (auth_config) = {
             required_scopes: ["w:silhouette:*", "w:silhouette:phone:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 

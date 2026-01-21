@@ -14,7 +14,7 @@ service Profiles {
     rpc CreateProfile(CreateProfileRequest) returns (Profile){
         option (auth_config) = {
             required_scopes: ["w:silhouette:*"]
-            allow_self_access: false
+            self_access_allowed: false
         };
     };
 
@@ -23,7 +23,7 @@ service Profiles {
     rpc GetProfile(GetProfileRequest) returns (Profile){
         option (auth_config) = {
             required_scopes: ["r:silhouette:*","r:silhouette:profile:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 
@@ -33,7 +33,7 @@ service Profiles {
     rpc UpdateProfile(UpdateProfileRequest) returns (Profile){
         option (auth_config) = {
             required_scopes: ["w:silhouette:*","w:silhouette:profile:*"]
-            allow_self_access: true
+            self_access_allowed: true
         };
     };
 }
