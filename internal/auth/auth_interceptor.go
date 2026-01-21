@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/tdeslauriers/carapace/pkg/jwt"
 	api "github.com/tdeslauriers/silhouette/api/v1"
@@ -69,13 +70,60 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 
 		// get service authorization bearer token from from metadata/headers
 		svcToken := md.Get("service-authorization")
-		// TODO: update carapace jwt verifier code and insert here
+		authedSvc, err := a.s2s.BuildAuthorized(authConfig.RequiredScopes, svcToken[0])
+		if err != nil {
+			a.logger.Error("failed to authorize service token", "err", err.Error())
+			return nil, status.Error(codes.Unauthenticated, "failed to authorize service token")
+		}
 
 		// get the access token from the metadata/headers
 		accessToken := md.Get("authorization")
-		// TODO: update carapace jwt verifier code and insert here
 
-		// TODO: add the authorized user to the context
+		// parse the access token
+		userJot, err := jwt.BuildFromToken(accessToken[0])
+		if err != nil {
+			a.logger.Error("failed to build JWT from access token", "err", err.Error())
+			return nil, status.Error(codes.Unauthenticated, "failed to build JWT from access token")
+		}
+
+		// verify signature
+		if err := a.iam.VerifySignature(userJot.BaseString, userJot.Signature); err != nil {
+			a.logger.Error("failed to verify access token signature", "err", err.Error())
+			return nil, status.Error(codes.Unauthenticated, "failed to verify access token signature")
+		}
+
+		// check access token issued time.
+		// padding time to avoid clock sync issues.
+		if time.Now().Add(2*time.Second).Unix() < userJot.Claims.IssuedAt {
+			a.logger.Error(
+				fmt.Sprintf("access token issued_at is in the future: %s",
+					time.Unix(userJot.Claims.IssuedAt, 0).Format(time.RFC3339)),
+			)
+			return nil, status.Error(codes.PermissionDenied, "access token issued_at is in the future")
+		}
+
+		// check access token expiry
+		if time.Now().Unix() > userJot.Claims.Expires {
+			a.logger.Error(
+				fmt.Sprintf("access token expired at: %s",
+					time.Unix(userJot.Claims.Expires, 0).Format(time.RFC3339)),
+			)
+			return nil, status.Error(codes.PermissionDenied, "access token expired")
+		}
+
+		// check authorization
+		if authConfig.SelfAccessAllowed || (hasRequiredAudience(definitions.ServiceProfile, userJot.Claims.MapAudiences()) &&
+			hasRequiredScopes(authConfig.RequiredScopes, userJot.Claims.MapScopes())) {
+
+			// add the authorized user to the context
+			ctx = withAuthContext(ctx, &AuthContext{
+				UserClaims: &userJot.Claims,
+				SvcClaims:  &authedSvc.Claims,
+			})
+		} else {
+			a.logger.Error("access denied")
+			return nil, status.Error(codes.PermissionDenied, "access denied")
+		}
 
 		return handler(ctx, req)
 	}
@@ -142,6 +190,26 @@ func (a *authInterceptor) parseFullMethod(fullMethod string) (service, method st
 	return service, method
 }
 
+// hasRequiredAudience checks if the user has the required audience to access the resource
+func hasRequiredAudience(requiredAudience string, userAudience map[string]bool) bool {
+
+	return userAudience[requiredAudience]
+}
+
+// hasRequiredScopes checks if the user any one of the required scopes to access the resource
+func hasRequiredScopes(requiredScopes []string, userScopes map[string]bool) bool {
+
+	// check if the user has any one of the required scopes
+	// return true on first match
+	for _, scope := range requiredScopes {
+		if userScopes[scope] {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AuthContext holds authentication and authorization information for a request
 type AuthContext struct {
 	SvcClaims  *jwt.Claims // jwt claims for service tokens
@@ -155,14 +223,17 @@ const authContextKey contextKey = "auth-context"
 
 // withAuthContext adds the AuthContext to the context
 func withAuthContext(ctx context.Context, authCtx *AuthContext) context.Context {
+
 	return context.WithValue(ctx, authContextKey, authCtx)
 }
 
 // getAuthContext retrieves the AuthContext from the context
-func GetAuthContext(ctx context.Context) *AuthContext {
+func GetAuthContext(ctx context.Context) (*AuthContext, error) {
+
 	authCtx, ok := ctx.Value(authContextKey).(*AuthContext)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("auth-context does not exist in context")
 	}
-	return authCtx
+
+	return authCtx, nil
 }
