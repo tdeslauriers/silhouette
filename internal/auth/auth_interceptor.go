@@ -69,11 +69,13 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 
 		// get service authorization bearer token from from metadata/headers
 		svcToken := md.Get("service-authorization")
+		// TODO: update carapace jwt verifier code and insert here
 
 		// get the access token from the metadata/headers
 		accessToken := md.Get("authorization")
+		// TODO: update carapace jwt verifier code and insert here
 
-		// add the authorized user to the context
+		// TODO: add the authorized user to the context
 
 		return handler(ctx, req)
 	}
