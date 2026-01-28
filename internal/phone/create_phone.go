@@ -94,11 +94,7 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create phone record for %s", req.Username))
 	}
 
-	log.Info(
-		fmt.Sprintf("successfully persisted phone record %s for %s", record.Uuid, profile.Username),
-		"requesting_service", authCtx.SvcClaims.Subject,
-		"actor", authCtx.UserClaims.Subject,
-	)
+	log.Info(fmt.Sprintf("successfully persisted phone record %s for %s", record.Uuid, profile.Username))
 
 	// persist profile-phone cross-reference
 	if err := ps.xrefStore.CreateProfilePhoneXref(ctx, profile.Uuid, record.Uuid); err != nil {
@@ -109,8 +105,6 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 
 	log.Info(
 		fmt.Sprintf("successfully created profile-phone cross-reference for %s and phone %s", req.Username, record.Uuid),
-		"requesting_service", authCtx.SvcClaims.Subject,
-		"actor", authCtx.UserClaims.Subject,
 	)
 
 	// return the created phone record
