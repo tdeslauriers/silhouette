@@ -31,8 +31,8 @@ func NewAuthInterceptor(s2s, iam jwt.Verifier) AuthInterceptor {
 		iam: iam,
 
 		logger: slog.Default().
-			With(definitions.PackageKey, definitions.PackageAuth).
-			With(definitions.ComponentKey, definitions.ComponentAuthInterceptor),
+			With(slog.String(definitions.PackageKey, definitions.PackageAuth)).
+			With(slog.String(definitions.ComponentKey, definitions.ComponentAuthInterceptor)),
 	}
 }
 
@@ -112,13 +112,15 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		}
 
 		// check authorization
-		if authConfig.SelfAccessAllowed || (hasRequiredAudience(definitions.ServiceProfile, userJot.Claims.MapAudiences()) &&
-			hasRequiredScopes(authConfig.RequiredScopes, userJot.Claims.MapScopes())) {
+		if authConfig.SelfAccessAllowed ||
+			(hasRequiredAudience(definitions.ServiceProfile, userJot.Claims.MapAudiences()) &&
+				hasRequiredScopes(authConfig.RequiredScopes, userJot.Claims.MapScopes())) {
 
-			// add the authorized user to the context
+			// add the authorized user and serviceto the context
 			ctx = withAuthContext(ctx, &AuthContext{
-				UserClaims: &userJot.Claims,
-				SvcClaims:  &authedSvc.Claims,
+				UserClaims:        &userJot.Claims,
+				SvcClaims:         &authedSvc.Claims,
+				SelfAccessAllowed: authConfig.SelfAccessAllowed,
 			})
 		} else {
 			a.logger.Error("access denied")
@@ -212,8 +214,9 @@ func hasRequiredScopes(requiredScopes []string, userScopes map[string]bool) bool
 
 // AuthContext holds authentication and authorization information for a request
 type AuthContext struct {
-	SvcClaims  *jwt.Claims // jwt claims for service tokens
-	UserClaims *jwt.Claims // jwt claims for user tokens
+	SvcClaims         *jwt.Claims // jwt claims for service tokens
+	UserClaims        *jwt.Claims // jwt claims for user tokens
+	SelfAccessAllowed bool        // indicates if the user is allowed to access their own resources
 }
 
 // contextKey is a private type to prevent collisions with other packages

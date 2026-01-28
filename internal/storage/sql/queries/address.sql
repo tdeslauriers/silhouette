@@ -2,6 +2,11 @@
 SELECT *
 FROM address;
 
+-- name: FindAddressBySlugIndex :one
+SELECT * 
+FROM address
+WHERE slug_index = sqlc.arg("slug_index");
+
 -- name: FindAddressByUserIndex :one
 SELECT a.*
 FROM address a
@@ -12,6 +17,8 @@ WHERE p.user_index = sqlc.arg("user_index");
 -- name: SaveAddress :exec
 INSERT INTO address (
     uuid, 
+    slug,
+    slug_index,
     address_line_1, 
     address_line_2, 
     city, 
@@ -23,6 +30,8 @@ INSERT INTO address (
     created_at
 ) VALUES (
     sqlc.arg("uuid"), 
+    sqlc.arg("slug"),
+    sqlc.arg("slug_index"),
     sqlc.arg("street_address"), 
     sqlc.arg("street_address_2"), 
     sqlc.arg("city"), 

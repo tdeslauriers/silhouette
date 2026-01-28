@@ -12,7 +12,7 @@ import (
 // PhoneStore provides persistance operations for phone numbers
 type PhoneStore interface {
 	// GetPhone retrieves a user's phone number from the database and decrypts the record.
-	GetPhone(ctx context.Context, username string) (*sqlc.Phone, error)
+	GetPhone(ctx context.Context, slug string) (*sqlc.Phone, error)
 
 	// CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 	CreatePhone(ctx context.Context, phone *sqlc.Phone) error
@@ -46,14 +46,14 @@ type phoneStore struct {
 }
 
 // GetPhone retrieves a user's phone number from the database and decrypts the record.
-func (ps *phoneStore) GetPhone(ctx context.Context, username string) (*sqlc.Phone, error) {
+func (ps *phoneStore) GetPhone(ctx context.Context, slug string) (*sqlc.Phone, error) {
 
-	index, err := ps.indexer.ObtainBlindIndex(username)
+	index, err := ps.indexer.ObtainBlindIndex(slug)
 	if err != nil {
 		return nil, err
 	}
 
-	phone, err := ps.sql.FindPhoneByUserIndex(ctx, index)
+	phone, err := ps.sql.FindPhoneBySlugIndex(ctx, index)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +78,9 @@ func (ps *phoneStore) CreatePhone(ctx context.Context, phone *sqlc.Phone) error 
 		PhoneNumber: phone.PhoneNumber,
 		Extension:   phone.Extension,
 		PhoneType:   phone.PhoneType,
+		IsCurrent:   phone.IsCurrent,
+		UpdatedAt:   phone.UpdatedAt,
+		CreatedAt:   phone.CreatedAt,
 	})
 }
 
@@ -89,11 +92,13 @@ func (ps *phoneStore) UpdatePhone(ctx context.Context, phone *sqlc.Phone) error 
 	}
 
 	return ps.sql.UpdatePhone(ctx, sqlc.UpdatePhoneParams{
-		Uuid:        phone.Uuid,
 		CountryCode: phone.CountryCode,
 		PhoneNumber: phone.PhoneNumber,
 		Extension:   phone.Extension,
 		PhoneType:   phone.PhoneType,
+		IsCurrent:   phone.IsCurrent,
+		UpdatedAt:   phone.UpdatedAt,
+		Uuid:        phone.Uuid,
 	})
 }
 

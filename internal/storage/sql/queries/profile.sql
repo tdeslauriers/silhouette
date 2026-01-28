@@ -1,6 +1,7 @@
 -- name: FindProfile :one
 SELECT 
     uuid,
+    slug,
     username,
     nick_name,
     dark_mode,
@@ -12,12 +13,14 @@ WHERE user_index = sqlc.arg("user_index");
 -- name: FindCompleteProfile :one
 SELECT 
     p.uuid AS profile_uuid, 
+    p.slug AS profile_slug,
     p.username,
     p.nick_name,
     p.dark_mode,
     p.updated_at AS profile_updated_at,
     p.created_at AS profile_created_at,
     a.uuid AS address_uuid,
+    a.slug AS address_slug,
     a.address_line_1,
     a.address_line_2,
     a.city,
@@ -28,6 +31,7 @@ SELECT
     a.updated_at AS address_updated_at,
     a.created_at AS address_created_at,
     ph.uuid AS phone_uuid,
+    ph.slug AS phone_slug,
     ph.country_code AS phone_country_code,
     ph.phone_number,
     ph.extension,
@@ -45,6 +49,8 @@ WHERE p.user_index = sqlc.arg("user_index");
 -- name: SaveProfile :exec
 INSERT INTO profile (
     uuid, 
+    slug,
+    slug_index,
     username,
     user_index,
     nick_name,
@@ -53,6 +59,8 @@ INSERT INTO profile (
     created_at
 ) VALUES (
     sqlc.arg("uuid"),
+    sqlc.arg("slug"),
+    sqlc.arg("slug_index"),
     sqlc.arg("username"),
     sqlc.arg("user_index"),
     sqlc.arg("nick_name"),
@@ -66,8 +74,8 @@ UPDATE profile SET
     nick_name = sqlc.arg("nick_name"),
     dark_mode = sqlc.arg("dark_mode"),
     updated_at = sqlc.arg("updated_at")
-WHERE user_index = sqlc.arg("user_index");
+WHERE uuid = sqlc.arg("uuid");
 
 -- name: DeleteProfile :exec
 DELETE FROM profile
-WHERE user_index = sqlc.arg("user_index");
+WHERE uuid = sqlc.arg("uuid");

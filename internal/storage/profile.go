@@ -146,7 +146,6 @@ func (ps *profileStore) UpdateProfile(ctx context.Context, profile *sqlc.Profile
 		NickName:  profile.NickName,
 		DarkMode:  profile.DarkMode,
 		UpdatedAt: profile.UpdatedAt,
-		UserIndex: profile.UserIndex,
 	})
 }
 

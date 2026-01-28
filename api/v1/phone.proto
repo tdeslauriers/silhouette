@@ -10,14 +10,6 @@ import "auth.proto";
 // Phones service provides operations for managing user phone information.
 service Phones {
 
-    // GetUserPhone retrieves the phone information for a specific user
-    rpc GetUserPhone(GetUserPhoneRequest) returns (Phone) {
-        option (auth_config) = {
-            required_scopes: ["w:silhouette:*", "w:silhouette:phone:*"]
-            self_access_allowed: true
-        };
-    };
-
     // creates/adds a new phone information for a user
     rpc CreatePhone(CreatePhoneRequest) returns (Phone) {
         option (auth_config) = {
@@ -44,24 +36,26 @@ service Phones {
 
 }
 
+enum PhoneType {
+    PHONE_TYPE_UNSPECIFIED = 0;
+    PHONE_TYPE_MOBILE = 1;
+    PHONE_TYPE_HOME = 2;
+    PHONE_TYPE_WORK = 3;
+}
+
 // Phone represents a user's phone information.
 message Phone {
     string username = 1;
-    string phone_uuid = 2;
-    string country_code = 3;
-    string phone_number = 4;
-    string extension = 5;
-    string phone_type = 6;
-    bool is_current = 7;
-    google.protobuf.Timestamp updated_at = 8;
-    google.protobuf.Timestamp created_at = 9;
+    string slug = 2;
+    string phone_uuid = 3;
+    string country_code = 4;
+    string phone_number = 5;
+    string extension = 6;
+    PhoneType phone_type = 7;
+    bool is_current = 8;
+    google.protobuf.Timestamp updated_at = 9;
+    google.protobuf.Timestamp created_at = 10;
 
-}
-
-// GetUserPhoneRequest is a model for the request message for 
-// retrieving a user's phone information.
-message GetUserPhoneRequest {
-    string username = 1;
 }
 
 // CreatePhoneRequest is a model for the request message for 
@@ -71,26 +65,27 @@ message CreatePhoneRequest {
     string country_code = 2;
     string phone_number = 3;
     string extension = 4;
-    string phone_type = 5;
+    PhoneType phone_type = 5;
 }
 
 // UpdatePhoneRequest is a model for the request message for 
 // updating an existing phone record for a user.
 message UpdatePhoneRequest {
     string username = 1;
-    string phone_uuid = 2;
-    string country_code = 3;
-    string phone_number = 4;
-    string extension = 5;
-    string phone_type = 6;
-    bool is_current = 7;
+    string phone_slug = 2;
+    string phone_uuid = 3;
+    string country_code = 4;
+    string phone_number = 5;
+    string extension = 6;
+    PhoneType phone_type = 7;
+    bool is_current = 8;
 }
 
 // DeletePhoneRequest is a model for the request message for 
 // deleting a user's phone record.
 message DeletePhoneRequest {
     string username = 1;
-    string phone_uuid = 2;
+    string phone_slug = 2;
 }
 
 

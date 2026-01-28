@@ -2,6 +2,11 @@
 SELECT * 
 FROM phone;
 
+-- name: FindPhoneBySlugIndex :one
+SELECT * 
+FROM phone
+WHERE slug_index = sqlc.arg("slug_index");
+
 -- name: FindPhoneByUserIndex :one
 SELECT p.* 
 FROM phone p
@@ -9,9 +14,12 @@ JOIN profile_phone pp ON p.uuid = pp.phone_uuid
 JOIN profile pr ON pp.profile_uuid = pr.uuid
 WHERE pr.user_index = sqlc.arg("user_index");
 
+
 -- name: SavePhone :exec
 INSERT INTO phone (
     uuid,
+    slug,
+    slug_index,
     country_code,
     phone_number,
     extension,
@@ -21,6 +29,8 @@ INSERT INTO phone (
     created_at
 ) VALUES (
     sqlc.arg("uuid"),
+    sqlc.arg("slug"),
+    sqlc.arg("slug_index"),
     sqlc.arg("country_code"),
     sqlc.arg("phone_number"),
     sqlc.arg("extension"),

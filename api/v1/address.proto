@@ -10,14 +10,6 @@ import "auth.proto";
 // Addresses service provides functions for managing addresses.
 service Addresses {
 
-    // GetUserAddress retrieves the address for a specific user
-    rpc GetUserAddress(GetUserAddressRequest) returns (Address) {
-        option (auth_config) = {
-            required_scopes: ["w:silhouette:*", "w:silhouette:address:*"]
-            self_access_allowed: true
-        };
-    };
-
     // creates/adds a new address for a user
     rpc CreateAddress(CreateAddressRequest) returns (Address) {
         option (auth_config) = {
@@ -46,22 +38,17 @@ service Addresses {
 // Address represents a physical or mailing address.
 message Address {
     string username = 1;
-    string address_uuid = 2;
-    string street_address = 3;
-    string street_address_2 = 4;
-    string city = 5;
-    string state_province = 6;
-    string postal_code = 7;
-    string country = 8;
-    bool is_current = 9;
-    google.protobuf.Timestamp updated_at = 10;
-    google.protobuf.Timestamp created_at = 11;
-}
-
-// GetUserAddressRequest is a model for the request message for 
-// retrieving a user's address.
-message GetUserAddressRequest {
-    string username = 1;
+    string slug = 2;
+    string address_uuid = 3;
+    string street_address = 4;
+    string street_address_2 = 5;
+    string city = 6;
+    string state_province = 7;
+    string postal_code = 8;
+    string country = 9;
+    bool is_current = 10;
+    google.protobuf.Timestamp updated_at = 11;
+    google.protobuf.Timestamp created_at = 12;
 }
 
 // CreateAddressRequest is a model for the request message for 
@@ -81,19 +68,20 @@ message CreateAddressRequest {
 //updating an address.
 message UpdateAddressRequest {
     string username = 1;
-    string address_uuid = 2;
-    string street_address = 3;
-    string street_address_2 = 4;
-    string city = 5;
-    string state_province = 6;
-    string postal_code = 7;
-    string country = 8;
-    bool is_current = 9;
+    string slug = 2;
+    string address_uuid = 3;
+    string street_address = 4;
+    string street_address_2 = 5;
+    string city = 6;
+    string state_province = 7;
+    string postal_code = 8;
+    string country = 9;
+    bool is_current = 10;
 }
 
 // DeleteAddressRequest is a model for the request message for 
 // deleting a user's address.
 message DeleteAddressRequest {
     string username = 1;
-    string address_uuid = 2;
+    string slug = 2;
 }
