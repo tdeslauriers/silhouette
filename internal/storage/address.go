@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/tdeslauriers/carapace/pkg/data"
 	"github.com/tdeslauriers/silhouette/internal/storage/crypt"
@@ -14,7 +13,7 @@ import (
 type AddressStore interface {
 
 	// GetAddress retrieves a user's address from the database and decrypts the record.
-	GetAddress(ctx context.Context, username string) (*sqlc.Address, error)
+	GetAddress(ctx context.Context, slug, username string) (*sqlc.Address, error)
 
 	// CreateAddress creates a new address record in the database, encrypting the fields before storage.
 	CreateAddress(ctx context.Context, address *sqlc.Address) error
@@ -48,22 +47,27 @@ type addressStore struct {
 }
 
 // GetAddress retrieves a user's address from the database, and decrypts the record
-func (s *addressStore) GetAddress(ctx context.Context, username string) (*sqlc.Address, error) {
+func (s *addressStore) GetAddress(ctx context.Context, slug, username string) (*sqlc.Address, error) {
+
+	// get slug index
+	slugIndex, err := s.indexer.ObtainBlindIndex(slug)
+	if err != nil {
+		return nil, err
+	}
 
 	// get username index
-	index, err := s.indexer.ObtainBlindIndex(username)
+	userIndex, err := s.indexer.ObtainBlindIndex(username)
 	if err != nil {
 		return nil, err
 	}
 
 	// fetch record from the db
-	address, err := s.sql.FindAddressByUserIndex(ctx, index)
+	address, err := s.sql.FindAddressByUser(ctx, sqlc.FindAddressByUserParams{
+		SlugIndex: slugIndex,
+		UserIndex: userIndex,
+	})
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("address not found for user %s", username)
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	// decrypt the address record's encrypted fields

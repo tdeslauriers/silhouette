@@ -45,8 +45,8 @@ message Profile {
   string username = 1;
   string nick_name = 2;
   bool dark_mode = 3;
-  Address address = 4;
-  Phone phone = 5;
+  repeated Address address = 4;
+  repeated Phone phone = 5;
 }
 
 // CreateProfileRequest is the request message for creating a new user profile.

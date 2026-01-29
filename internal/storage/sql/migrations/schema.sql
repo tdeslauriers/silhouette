@@ -2,15 +2,12 @@ CREATE TABLE IF NOT EXISTS profile (
     uuid CHAR(36) PRIMARY KEY,
     username VARCHAR(128) NOT NULL,
     user_index VARCHAR(128) NOT NULL,
-    slug VARCHAR(128) NOT NULL,
-    slug_index VARCHAR(128) NOT NULL,
     nick_name VARCHAR(128),
     dark_mode BOOLEAN NOT NULL DEFAULT TRUE,
     updated_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
 CREATE UNIQUE INDEX idx_profile_blind_index ON profile(user_index);
-CREATE UNIQUE INDEX idx_profile_slug_index ON profile(slug_index);
 
 CREATE TABLE IF NOT EXISTS address (
     uuid CHAR(36) PRIMARY KEY,

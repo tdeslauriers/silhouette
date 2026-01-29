@@ -1,19 +1,11 @@
 -- name: FindProfile :one
-SELECT 
-    uuid,
-    slug,
-    username,
-    nick_name,
-    dark_mode,
-    updated_at,
-    created_at
+SELECT *
 FROM profile
 WHERE user_index = sqlc.arg("user_index");
 
--- name: FindCompleteProfile :one
+-- name: FindProfileAddressPhoneRows :many
 SELECT 
     p.uuid AS profile_uuid, 
-    p.slug AS profile_slug,
     p.username,
     p.nick_name,
     p.dark_mode,
@@ -49,8 +41,6 @@ WHERE p.user_index = sqlc.arg("user_index");
 -- name: SaveProfile :exec
 INSERT INTO profile (
     uuid, 
-    slug,
-    slug_index,
     username,
     user_index,
     nick_name,
@@ -59,8 +49,6 @@ INSERT INTO profile (
     created_at
 ) VALUES (
     sqlc.arg("uuid"),
-    sqlc.arg("slug"),
-    sqlc.arg("slug_index"),
     sqlc.arg("username"),
     sqlc.arg("user_index"),
     sqlc.arg("nick_name"),

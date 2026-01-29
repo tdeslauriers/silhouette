@@ -2,17 +2,19 @@
 SELECT *
 FROM address;
 
--- name: FindAddressBySlugIndex :one
+-- name: FindAddressBySlug :one
 SELECT * 
 FROM address
 WHERE slug_index = sqlc.arg("slug_index");
 
--- name: FindAddressByUserIndex :one
+-- name: FindAddressByUser :one
 SELECT a.*
 FROM address a
 JOIN profile_address pa ON a.uuid = pa.address_uuid
 JOIN profile p ON pa.profile_uuid = p.uuid
-WHERE p.user_index = sqlc.arg("user_index");
+WHERE a.slug_index = sqlc.arg("slug_index")
+AND p.user_index = sqlc.arg("user_index");
+
 
 -- name: SaveAddress :exec
 INSERT INTO address (

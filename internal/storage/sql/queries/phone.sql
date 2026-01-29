@@ -2,17 +2,18 @@
 SELECT * 
 FROM phone;
 
--- name: FindPhoneBySlugIndex :one
+-- name: FindPhoneBySlug :one
 SELECT * 
 FROM phone
 WHERE slug_index = sqlc.arg("slug_index");
 
--- name: FindPhoneByUserIndex :one
+-- name: FindPhoneByUser :one
 SELECT p.* 
 FROM phone p
 JOIN profile_phone pp ON p.uuid = pp.phone_uuid
 JOIN profile pr ON pp.profile_uuid = pr.uuid
-WHERE pr.user_index = sqlc.arg("user_index");
+WHERE p.slug_index = sqlc.arg("slug_index")
+AND pr.user_index = sqlc.arg("user_index");
 
 
 -- name: SavePhone :exec

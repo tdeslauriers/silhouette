@@ -61,11 +61,16 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 
 	// do not need to fetch profile, auth validates user exists
 
-	// get the existing phone record by slug
-	phone, err := ps.phoneStore.GetPhone(ctx, req.PhoneSlug)
+	// get the existing phone record by slug and username
+	// a phone update requires the cmd to have the correct slug and
+	// the correct username associated with the phone record
+	phone, err := ps.phoneStore.GetUsersPhone(ctx, req.GetPhoneSlug(), req.GetUsername())
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Error(fmt.Sprintf("phone record not found for slug: %s", req.PhoneSlug), "err", err.Error())
+			log.Error(
+				fmt.Sprintf("phone slug %s record not found for user %s", req.GetPhoneSlug(), req.GetUsername()),
+				"err", err.Error(),
+			)
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s", req.PhoneSlug))
 		} else {
 			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.PhoneSlug), "err", err.Error())

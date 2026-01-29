@@ -2,6 +2,9 @@ package phone
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/tdeslauriers/carapace/pkg/validate"
@@ -55,13 +58,26 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 	}
 
 	// get the phone records by the username
-
-	// get the specific phone correct phone record by the slug
-	// to make sure the user actually owns the phone record
-
-	// delete the xref
+	// need to validate the slug exists and is associated with the given username
+	phone, err := ps.phoneStore.GetUsersPhone(ctx, req.GetPhoneSlug(), req.GetUsername())
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Error(
+				fmt.Sprintf("phone slug %s record not found for user %s", req.GetPhoneSlug(), req.GetUsername()),
+				"err", err.Error(),
+			)
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s", req.PhoneSlug))
+		} else {
+			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.PhoneSlug), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get phone record for slug: %s", req.PhoneSlug))
+		}
+	}
 
 	// delete the phone record
+	if err := ps.phoneStore.DeletePhone(ctx, phone.Uuid); err != nil {
+		log.Error("failed to delete phone record", "err", err.Error())
+		return nil, status.Error(codes.Internal, "failed to delete phone record")
+	}
 
 	return &emptypb.Empty{}, nil
 }

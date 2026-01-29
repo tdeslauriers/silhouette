@@ -11,8 +11,9 @@ import (
 
 // PhoneStore provides persistance operations for phone numbers
 type PhoneStore interface {
+
 	// GetPhone retrieves a user's phone number from the database and decrypts the record.
-	GetPhone(ctx context.Context, slug string) (*sqlc.Phone, error)
+	GetUsersPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error)
 
 	// CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 	CreatePhone(ctx context.Context, phone *sqlc.Phone) error
@@ -46,18 +47,30 @@ type phoneStore struct {
 }
 
 // GetPhone retrieves a user's phone number from the database and decrypts the record.
-func (ps *phoneStore) GetPhone(ctx context.Context, slug string) (*sqlc.Phone, error) {
+func (ps *phoneStore) GetUsersPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error) {
 
-	index, err := ps.indexer.ObtainBlindIndex(slug)
+	// get the blind slugIndex for the phone slug
+	slugIndex, err := ps.indexer.ObtainBlindIndex(slug)
 	if err != nil {
 		return nil, err
 	}
 
-	phone, err := ps.sql.FindPhoneBySlugIndex(ctx, index)
+	// get the blind index for the username
+	userIndex, err := ps.indexer.ObtainBlindIndex(username)
 	if err != nil {
 		return nil, err
 	}
 
+	// fetch the phone record for the given user and slug
+	phone, err := ps.sql.FindPhoneByUser(ctx, sqlc.FindPhoneByUserParams{
+		SlugIndex: slugIndex,
+		UserIndex: userIndex,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// decrypt the phone record
 	if err := ps.cryptor.DecryptPhone(&phone); err != nil {
 		return nil, err
 	}
