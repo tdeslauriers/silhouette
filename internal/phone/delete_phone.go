@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	exo "github.com/tdeslauriers/carapace/pkg/connect/grpc"
 	"github.com/tdeslauriers/carapace/pkg/validate"
 	api "github.com/tdeslauriers/silhouette/api/v1"
 	"github.com/tdeslauriers/silhouette/internal/auth"
@@ -18,15 +19,25 @@ import (
 // DeletePhone deletes a phone record by its slug.
 func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequest) (*emptypb.Empty, error) {
 
+	// get telemetry context
+	telemetry, ok := exo.GetTelemetryFromContext(ctx)
+	if !ok {
+		// this should not be possible since the interceptor will have generated new if missing
+		ps.logger.Warn("failed to get telmetry from incoming context")
+	}
+
+	// append telemetry fields.
+	log := ps.logger.With(telemetry.TelemetryFields()...)
+
 	// get authz context
 	authCtx, err := auth.GetAuthContext(ctx)
 	if err != nil {
-		ps.logger.Error("failed to get auth context", "err", err.Error())
+		log.Error("failed to get auth context", "err", err.Error())
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
 	}
 
 	// add actors to audit log
-	log := ps.logger.
+	log = log.
 		With("actor", authCtx.UserClaims.Subject).
 		With("requesting_service", authCtx.SvcClaims.Subject)
 
@@ -68,7 +79,7 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 			)
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s", req.PhoneSlug))
 		} else {
-			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.PhoneSlug), "err", err.Error())
+			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.GetPhoneSlug()), "err", err.Error())
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get phone record for slug: %s", req.PhoneSlug))
 		}
 	}

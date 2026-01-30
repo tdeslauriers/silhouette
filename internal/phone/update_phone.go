@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	exo "github.com/tdeslauriers/carapace/pkg/connect/grpc"
 	api "github.com/tdeslauriers/silhouette/api/v1"
 	"github.com/tdeslauriers/silhouette/internal/auth"
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"
@@ -19,15 +20,25 @@ import (
 
 func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequest) (*api.Phone, error) {
 
+	// get telemetry context
+	telemetry, ok := exo.GetTelemetryFromContext(ctx)
+	if !ok {
+		// this should not be possible since the interceptor will have generated new if missing
+		ps.logger.Warn("failed to get telmetry from incoming context")
+	}
+
+	// append telemetry fields.
+	log := ps.logger.With(telemetry.TelemetryFields()...)
+
 	// get authz context
 	authCtx, err := auth.GetAuthContext(ctx)
 	if err != nil {
-		ps.logger.Error("failed to get auth context", "err", err.Error())
+		log.Error("failed to get auth context", "err", err.Error())
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
 	}
 
 	// add actors to audit log
-	log := ps.logger.
+	log = log.
 		With("actor", authCtx.UserClaims.Subject).
 		With("requesting_service", authCtx.SvcClaims.Subject)
 
