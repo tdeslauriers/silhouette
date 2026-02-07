@@ -11,14 +11,16 @@ const (
 const (
 	PackageKey = "package"
 
-	PackageAuth = "auth"
-	PackagePhone = "phone"
+	PackageAddress = "address"
+	PackageAuth    = "auth"
+	PackagePhone   = "phone"
 )
 
 // component names
 const (
 	ComponentKey = "component"
 
+	ComponentAddressServer   = "address_server"
 	ComponentAuthInterceptor = "auth_interceptor"
 	ComponentPhoneServer     = "phone_server"
 )

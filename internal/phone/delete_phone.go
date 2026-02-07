@@ -26,7 +26,7 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 		ps.logger.Warn("failed to get telmetry from incoming context")
 	}
 
-	// append telemetry fields.
+	// append telemetry fields
 	log := ps.logger.With(telemetry.TelemetryFields()...)
 
 	// get authz context
@@ -56,7 +56,7 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 		}
 
 		// self access allowed, so requested username must == authenticated user's username
-		if authCtx.UserClaims.Subject != req.GetUsername() {
+		if authCtx.UserClaims.Subject != strings.TrimSpace(req.GetUsername()) {
 			log.Error("access denied", "err", "you may only delete a phone record for your own profile")
 			return nil, status.Error(codes.PermissionDenied, "you may only delete a phone record for your own profile")
 		}
@@ -70,7 +70,11 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 
 	// get the phone records by the username
 	// need to validate the slug exists and is associated with the given username
-	phone, err := ps.phoneStore.GetUsersPhone(ctx, req.GetPhoneSlug(), req.GetUsername())
+	phone, err := ps.phoneStore.GetUsersPhone(
+		ctx,
+		strings.TrimSpace(req.GetPhoneSlug()),
+		strings.TrimSpace(req.GetUsername()),
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Error(
@@ -84,11 +88,25 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 		}
 	}
 
+	// delete the xref record
+	if err := ps.xrefStore.RemovePhoneXrefByPhone(ctx, phone.Uuid); err != nil {
+		log.Error("failed to delete phone xref record", "err", err.Error())
+		return nil, status.Error(codes.Internal, "failed to delete phone xref record")
+	}
+
+	log.Info(
+		fmt.Sprintf("successfully deleted phone xref record for phone slug %s and user %s", 
+		req.GetPhoneSlug(), 
+		req.GetUsername()),
+	)
+
 	// delete the phone record
 	if err := ps.phoneStore.DeletePhone(ctx, phone.Uuid); err != nil {
 		log.Error("failed to delete phone record", "err", err.Error())
 		return nil, status.Error(codes.Internal, "failed to delete phone record")
 	}
+
+	log.Info(fmt.Sprintf("successfully deleted phone record for phone slug %s", req.GetPhoneSlug()))
 
 	return &emptypb.Empty{}, nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -27,7 +28,7 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 		ps.logger.Warn("failed to get telmetry from incoming context")
 	}
 
-	// append telemetry fields.
+	// append telemetry fields
 	log := ps.logger.With(telemetry.TelemetryFields()...)
 
 	// get authz context
@@ -71,29 +72,47 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 
 	// get the profile record to validate user exists in service and
 	// if so, retreive their record's uuid for xref
-	profile, err := ps.profileStore.GetProfile(ctx, req.Username)
+	profile, err := ps.profileStore.GetProfile(ctx, req.GetUsername())
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to lookup profile for %s", req.Username), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to look up profile for %s", req.Username))
+		log.Error(fmt.Sprintf("failed to lookup profile for %s", req.GetUsername()), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to look up profile for %s", req.GetUsername()))
 	}
 
 	// create phone record
 	// generate uuid here so cross reference can be created
 	id, err := uuid.NewRandom()
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to generate uuid for %s's new phone record", req.Username), "err", err.Error())
+		log.Error(fmt.Sprintf("failed to generate uuid for %s's new phone record", req.GetUsername()), "err", err.Error())
 		return nil, status.Error(codes.Internal, "failed to generate uuid for new phone record")
+	}
+
+	// generate slug
+	slug, err := uuid.NewRandom()
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to generate slug for %s's new phone record", req.GetUsername()), "err", err.Error())
+		return nil, status.Error(codes.Internal, "failed to generate slug for new phone record")
 	}
 
 	// generate timestamp
 	now := time.Now().UTC()
 
+	// prepare fields
+	countryCode := normalizeCountryCode(strings.TrimSpace(req.GetCountryCode()))
+	phoneNumber := normalizePhoneNumber(strings.TrimSpace(req.GetPhoneNumber()))
+	phoneType := strings.TrimSpace(req.GetPhoneType().String())
+
+	var extension string
+	if len(req.GetExtension()) > 0 {
+		extension = normalizeExtension(strings.TrimSpace(req.GetExtension()))
+	}
+
 	record := &sqlc.Phone{
 		Uuid:        id.String(),
-		CountryCode: sql.NullString{String: normalizeCountryCode(req.GetCountryCode()), Valid: true},
-		PhoneNumber: sql.NullString{String: normalizePhoneNumber(req.GetPhoneNumber()), Valid: true},
-		Extension:   sql.NullString{String: normalizeExtension(req.GetExtension()), Valid: true},
-		PhoneType:   sql.NullString{String: convertToSqlString(req.GetPhoneType()), Valid: true},
+		Slug:        slug.String(),
+		CountryCode: sql.NullString{String: countryCode, Valid: true},
+		PhoneNumber: sql.NullString{String: phoneNumber, Valid: true},
+		Extension:   sql.NullString{String: extension, Valid: extension != ""},
+		PhoneType:   sql.NullString{String: phoneType, Valid: true},
 		IsCurrent:   true, // a new phone record will default to current
 		UpdatedAt:   now,
 		CreatedAt:   now,
@@ -101,33 +120,33 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 
 	// persist phone record
 	if err := ps.phoneStore.CreatePhone(ctx, record); err != nil {
-		log.Error(fmt.Sprintf("failed to create phone record for %s", req.Username), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create phone record for %s", req.Username))
+		log.Error(fmt.Sprintf("failed to create phone record for %s", req.GetUsername()), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create phone record for %s", req.GetUsername()))
 	}
 
-	log.Info(fmt.Sprintf("successfully persisted phone record %s for %s", record.Uuid, profile.Username))
+	log.Info(fmt.Sprintf("successfully persisted phone record (slug %s) for %s", record.Slug, profile.Username))
 
 	// persist profile-phone cross-reference
-	if err := ps.xrefStore.CreateProfilePhoneXref(ctx, profile.Uuid, record.Uuid); err != nil {
-		log.Error(fmt.Sprintf("failed to create profile-phone cross-reference for %s", req.Username), "err", err.Error())
+	if err := ps.xrefStore.CreateProfilePhoneXref(ctx, profile.Uuid, record.Slug); err != nil {
+		log.Error(fmt.Sprintf("failed to create profile-phone cross-reference for %s", req.GetUsername()), "err", err.Error())
 		return nil, status.Error(codes.Internal,
-			fmt.Sprintf("failed to create profile-phone cross-reference for %s and phone %s", req.Username, record.Uuid))
+			fmt.Sprintf("failed to create profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), record.Slug))
 	}
 
 	log.Info(
-		fmt.Sprintf("successfully created profile-phone cross-reference for %s and phone %s", req.Username, record.Uuid),
+		fmt.Sprintf("successfully persisted profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), record.Slug),
 	)
 
 	// return the created phone record
 	return &api.Phone{
 		PhoneUuid:   record.Uuid,
+		Slug:        record.Slug,
 		CountryCode: record.CountryCode.String,
 		PhoneNumber: record.PhoneNumber.String,
-		Extension:   record.Extension.String,
+		Extension:   proto.String(record.Extension.String),
 		PhoneType:   ConvertPhoneType(record.PhoneType.String),
 		IsCurrent:   record.IsCurrent,
 		UpdatedAt:   timestamppb.New(record.UpdatedAt),
 		CreatedAt:   timestamppb.New(record.CreatedAt),
 	}, nil
-
 }

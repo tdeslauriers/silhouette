@@ -45,17 +45,16 @@ enum PhoneType {
 
 // Phone represents a user's phone information.
 message Phone {
-    string username = 1;
+    string uuid = 1;
     string slug = 2;
     string phone_uuid = 3;
     string country_code = 4;
     string phone_number = 5;
-    string extension = 6;
+    optional string extension = 6;
     PhoneType phone_type = 7;
     bool is_current = 8;
     google.protobuf.Timestamp updated_at = 9;
     google.protobuf.Timestamp created_at = 10;
-
 }
 
 // CreatePhoneRequest is a model for the request message for 
@@ -64,7 +63,7 @@ message CreatePhoneRequest {
     string username = 1;
     string country_code = 2;
     string phone_number = 3;
-    string extension = 4;
+    optional string extension = 4;
     PhoneType phone_type = 5;
 }
 
@@ -73,12 +72,11 @@ message CreatePhoneRequest {
 message UpdatePhoneRequest {
     string username = 1;
     string phone_slug = 2;
-    string phone_uuid = 3;
-    string country_code = 4;
-    string phone_number = 5;
-    string extension = 6;
-    PhoneType phone_type = 7;
-    bool is_current = 8;
+    string country_code = 3;
+    string phone_number = 4;
+    optional string extension = 5;
+    PhoneType phone_type = 6;
+    bool is_current = 7;
 }
 
 // DeletePhoneRequest is a model for the request message for 

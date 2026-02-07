@@ -35,6 +35,7 @@ func NewPhoneServer(
 		phoneStore:   phoneSql,
 		profileStore: profileSql,
 		xrefStore:    xrefSql,
+
 		logger: slog.Default().
 			With(slog.String(definitions.ComponentKey, definitions.ComponentPhoneServer)).
 			With(slog.String(definitions.PackageKey, definitions.PackagePhone)),
@@ -105,12 +106,19 @@ func ValidateCmd(cmd PhoneUpsert) error {
 		return err
 	}
 
-	if err := validate.IsValidCountryCode(normalizeCountryCode(cmd.GetCountryCode())); err != nil {
+	if err := validate.ValidateCountryCode(normalizeCountryCode(cmd.GetCountryCode())); err != nil {
 		return err
 	}
 
-	if err := validate.IsValidPhoneNumber(normalizePhoneNumber(cmd.GetPhoneNumber())); err != nil {
+	if err := validate.ValidatePhoneNumber(normalizePhoneNumber(cmd.GetPhoneNumber())); err != nil {
 		return err
+	}
+
+	// check for extension and if present, validate
+	if len(cmd.GetExtension()) > 0 {
+		if err := validate.ValidateExtension(normalizeExtension(cmd.GetExtension())); err != nil {
+			return err
+		}
 	}
 
 	_, ok := api.PhoneType_name[int32(cmd.GetPhoneType())]

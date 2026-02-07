@@ -39,13 +39,27 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 	var (
 		wg sync.WaitGroup
 
+		slugCh        = make(chan string, 1)
 		countryCodeCh = make(chan string, 1)
 		phNumberCh    = make(chan string, 1)
 		extCh         = make(chan string, 1)
 		phTypeCh      = make(chan string, 1)
 
-		errCh = make(chan error, 4)
+		errCh = make(chan error, 5)
 	)
+
+	if phone.Slug != "" {
+		wg.Add(1)
+		go pc.cryptor.EncryptField(
+			"slug",
+			phone.Slug,
+			slugCh,
+			errCh,
+			&wg,
+		)
+	} else {
+		slugCh <- "" 
+	}
 
 	if phone.CountryCode.Valid {
 		wg.Add(1)
@@ -100,6 +114,7 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 	}
 
 	wg.Wait()
+	close(slugCh)
 	close(countryCodeCh)
 	close(phNumberCh)
 	close(extCh)
@@ -115,6 +130,7 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 		return fmt.Errorf("phone record encryption errors: %v", errors.Join(errs...))
 	}
 
+	phone.Slug = <-slugCh
 	phone.CountryCode = sql.NullString{String: <-countryCodeCh, Valid: true}
 	phone.PhoneNumber = sql.NullString{String: <-phNumberCh, Valid: true}
 	phone.Extension = sql.NullString{String: <-extCh, Valid: true}
@@ -129,13 +145,27 @@ func (pc *phoneCryptor) DecryptPhone(phone *sqlc.Phone) error {
 	var (
 		wg sync.WaitGroup
 
+		slugCh        = make(chan string, 1)
 		countryCodeCh = make(chan string, 1)
 		phNumberCh    = make(chan string, 1)
 		extCh         = make(chan string, 1)
 		phTypeCh      = make(chan string, 1)
 
-		errCh = make(chan error, 4)
+		errCh = make(chan error, 5)
 	)
+
+	if phone.Slug != "" {
+		wg.Add(1)
+		go pc.cryptor.DecryptField(
+			"slug",
+			phone.Slug,
+			slugCh,
+			errCh,
+			&wg,
+		)
+	} else {
+		errCh <- errors.New("slug field is empty so it cannot be decrypted")
+	}
 
 	if phone.CountryCode.Valid {
 		wg.Add(1)
@@ -190,6 +220,7 @@ func (pc *phoneCryptor) DecryptPhone(phone *sqlc.Phone) error {
 	}
 
 	wg.Wait()
+	close(slugCh)
 	close(countryCodeCh)
 	close(phNumberCh)
 	close(extCh)
@@ -205,6 +236,7 @@ func (pc *phoneCryptor) DecryptPhone(phone *sqlc.Phone) error {
 		return fmt.Errorf("phone record decryption errors: %v", errors.Join(errs...))
 	}
 
+	phone.Slug = <-slugCh
 	phone.CountryCode = sql.NullString{String: <-countryCodeCh, Valid: true}
 	phone.PhoneNumber = sql.NullString{String: <-phNumberCh, Valid: true}
 	phone.Extension = sql.NullString{String: <-extCh, Valid: true}

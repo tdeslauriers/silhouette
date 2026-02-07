@@ -10,14 +10,17 @@ import (
 	"time"
 
 	exo "github.com/tdeslauriers/carapace/pkg/connect/grpc"
+	"github.com/tdeslauriers/carapace/pkg/validate"
 	api "github.com/tdeslauriers/silhouette/api/v1"
 	"github.com/tdeslauriers/silhouette/internal/auth"
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// UpdatePhone updates an existing phone record for a user in the database.
 func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequest) (*api.Phone, error) {
 
 	// get telemetry context
@@ -27,7 +30,7 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		ps.logger.Warn("failed to get telmetry from incoming context")
 	}
 
-	// append telemetry fields.
+	// append telemetry fields
 	log := ps.logger.With(telemetry.TelemetryFields()...)
 
 	// get authz context
@@ -70,55 +73,65 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	// validate slug since not accounted for in cmd validation
+	if !validate.IsValidUuid(strings.TrimSpace(req.GetPhoneSlug())) {
+		log.Error("invalid phone slug", "err", "phone slug must be a valid UUID")
+		return nil, status.Error(codes.InvalidArgument, "phone slug must be a valid UUID")
+	}
+
 	// do not need to fetch profile, auth validates user exists
 
-	// get the existing phone record by slug and username
-	// a phone update requires the cmd to have the correct slug and
-	// the correct username associated with the phone record
-	phone, err := ps.phoneStore.GetUsersPhone(ctx, req.GetPhoneSlug(), req.GetUsername())
+	// get the existing record record by slug and username
+	// a record update requires the cmd to have the correct slug and
+	// the correct username associated with the record record
+	record, err := ps.phoneStore.GetUsersPhone(ctx, req.GetPhoneSlug(), req.GetUsername())
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Error(
 				fmt.Sprintf("phone slug %s record not found for user %s", req.GetPhoneSlug(), req.GetUsername()),
 				"err", err.Error(),
 			)
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s", req.PhoneSlug))
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s", req.GetPhoneSlug()))
 		} else {
-			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.PhoneSlug), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get phone record for slug: %s", req.PhoneSlug))
+			log.Error(fmt.Sprintf("failed to get phone record for slug %s", req.GetPhoneSlug()), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get phone record for slug: %s", req.GetPhoneSlug()))
 		}
 	}
 
 	// prepare fields
-	countryCode := strings.TrimSpace(req.GetCountryCode())
-	phoneNumber := strings.TrimSpace(req.GetPhoneNumber())
-	extension := strings.TrimSpace(req.GetExtension())
+	countryCode := normalizeCountryCode(strings.TrimSpace(req.GetCountryCode()))
+	phoneNumber := normalizePhoneNumber(strings.TrimSpace(req.GetPhoneNumber()))
 	phoneType := strings.TrimSpace(req.GetPhoneType().String())
 
-	// check if update necessary
-	if countryCode == phone.CountryCode.String &&
-		phoneNumber == phone.PhoneNumber.String &&
-		extension == phone.Extension.String &&
-		phoneType == phone.PhoneType.String &&
-		req.GetIsCurrent() == phone.IsCurrent {
+	var extension string
+	if len(req.GetExtension()) > 0 {
+		extension = normalizeExtension(strings.TrimSpace(req.GetExtension()))
+	}
 
-		log.Warn(fmt.Sprintf("no update necessary, no changed to phone record for slug: %s", req.PhoneSlug))
+	// check if update necessary
+	if countryCode == record.CountryCode.String &&
+		phoneNumber == record.PhoneNumber.String &&
+		extension == record.Extension.String &&
+		phoneType == record.PhoneType.String &&
+		req.GetIsCurrent() == record.IsCurrent {
+
+		log.Warn(fmt.Sprintf("no update necessary, no changed to phone record - slug: %s", req.GetPhoneSlug()))
 		return &api.Phone{
-			PhoneUuid:   phone.Uuid,
-			Slug:        phone.Slug,
-			CountryCode: phone.CountryCode.String,
-			PhoneNumber: phone.PhoneNumber.String,
-			Extension:   phone.Extension.String,
-			PhoneType:   api.PhoneType(api.PhoneType_value[phone.PhoneType.String]),
-			IsCurrent:   phone.IsCurrent,
-			UpdatedAt:   timestamppb.New(phone.UpdatedAt),
-			CreatedAt:   timestamppb.New(phone.CreatedAt),
+			Uuid:        record.Uuid,
+			Slug:        record.Slug,
+			CountryCode: record.CountryCode.String,
+			PhoneNumber: record.PhoneNumber.String,
+			Extension:   proto.String(record.Extension.String),
+			PhoneType:   api.PhoneType(api.PhoneType_value[record.PhoneType.String]),
+			IsCurrent:   record.IsCurrent,
+			UpdatedAt:   timestamppb.New(record.UpdatedAt),
+			CreatedAt:   timestamppb.New(record.CreatedAt),
 		}, nil
 	}
 
 	// build updated record
 	updated := &sqlc.Phone{
-		Uuid: phone.Uuid,
+		Uuid: record.Uuid,
 		// Slug not needed for update
 		// SlugIndex not needed for update
 		CountryCode: sql.NullString{String: countryCode, Valid: countryCode != ""},
@@ -132,61 +145,61 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 
 	// update persistence layer
 	if err := ps.phoneStore.UpdatePhone(ctx, updated); err != nil {
-		log.Error(fmt.Sprintf("failed to update phone record for slug %s", req.PhoneSlug), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update phone record for slug: %s", req.PhoneSlug))
+		log.Error(fmt.Sprintf("failed to update phone record for slug %s", req.GetPhoneSlug()), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update phone record - slug: %s", req.GetPhoneSlug()))
 	}
 
 	// build audit log fields
 	var updatedFields []any
 
-	if countryCode != phone.CountryCode.String {
+	if countryCode != record.CountryCode.String {
 		updatedFields = append(updatedFields,
-			slog.String("country_code_previous", phone.CountryCode.String),
+			slog.String("country_code_previous", record.CountryCode.String),
 			slog.String("country_code_updated", countryCode),
 		)
 	}
 
-	if phoneNumber != phone.PhoneNumber.String {
+	if phoneNumber != record.PhoneNumber.String {
 		updatedFields = append(updatedFields,
-			slog.String("phone_number_previous", phone.PhoneNumber.String),
+			slog.String("phone_number_previous", record.PhoneNumber.String),
 			slog.String("phone_number_updated", phoneNumber),
 		)
 	}
 
-	if extension != phone.Extension.String {
+	if extension != record.Extension.String {
 		updatedFields = append(updatedFields,
-			slog.String("extension_previous", phone.Extension.String),
+			slog.String("extension_previous", record.Extension.String),
 			slog.String("extension_updated", extension),
 		)
 	}
 
-	if phoneType != phone.PhoneType.String {
+	if phoneType != record.PhoneType.String {
 		updatedFields = append(updatedFields,
-			slog.String("phone_type_previous", phone.PhoneType.String),
+			slog.String("phone_type_previous", record.PhoneType.String),
 			slog.String("phone_type_updated", phoneType),
 		)
 	}
 
-	if req.GetIsCurrent() != phone.IsCurrent {
+	if req.GetIsCurrent() != record.IsCurrent {
 		updatedFields = append(updatedFields,
-			slog.Bool("is_current_previous", phone.IsCurrent),
+			slog.Bool("is_current_previous", record.IsCurrent),
 			slog.Bool("is_current_updated", req.GetIsCurrent()),
 		)
 	}
 
 	// log successful update
 	log.With(updatedFields...)
-	log.Info(fmt.Sprintf("successfully updated phone record for slug: %s", req.PhoneSlug))
+	log.Info(fmt.Sprintf("successfully updated phone record - slug: %s", req.GetPhoneSlug()))
 
 	return &api.Phone{
-		PhoneUuid:   updated.Uuid,
-		Slug:        updated.Slug,
+		Uuid:        record.Uuid,
+		Slug:        record.Slug,
 		CountryCode: countryCode,
 		PhoneNumber: phoneNumber,
-		Extension:   extension,
+		Extension:   proto.String(extension),
 		PhoneType:   api.PhoneType(api.PhoneType_value[phoneType]),
 		IsCurrent:   updated.IsCurrent,
 		UpdatedAt:   timestamppb.New(updated.UpdatedAt),
-		CreatedAt:   timestamppb.New(phone.CreatedAt),
+		CreatedAt:   timestamppb.New(record.CreatedAt),
 	}, nil
 }

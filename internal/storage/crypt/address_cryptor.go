@@ -42,6 +42,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 	var (
 		wg sync.WaitGroup
 
+		slugCh    = make(chan string, 1)
 		line1Ch   = make(chan string, 1)
 		line2Ch   = make(chan string, 1)
 		cityCh    = make(chan string, 1)
@@ -49,8 +50,21 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 		zipCh     = make(chan string, 1)
 		countryCh = make(chan string, 1)
 
-		errCh = make(chan error, 6)
+		errCh = make(chan error, 7)
 	)
+
+	if address.Slug != "" {
+		wg.Add(1)
+		go ac.cryptor.EncryptField(
+			"slug",
+			address.Slug,
+			slugCh,
+			errCh,
+			&wg,
+		)
+	} else {
+		errCh <- errors.New("slug field is empty so it cannot be encrypted")
+	}
 
 	if address.AddressLine1.Valid {
 
@@ -76,7 +90,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 			&wg,
 		)
 	} else {
-		line2Ch <- ""
+		slugCh <- ""
 	}
 
 	if address.City.Valid {
@@ -132,6 +146,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 	}
 
 	wg.Wait()
+	close(slugCh)
 	close(line1Ch)
 	close(line2Ch)
 	close(cityCh)
@@ -149,6 +164,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 		return fmt.Errorf("address record encryption errors: %v", errors.Join(errs...))
 	}
 
+	address.Slug = <-slugCh
 	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
 	address.AddressLine2 = sql.NullString{String: <-line2Ch, Valid: true}
 	address.City = sql.NullString{String: <-cityCh, Valid: true}
@@ -165,6 +181,7 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 	var (
 		wg sync.WaitGroup
 
+		slugCh    = make(chan string, 1)
 		line1Ch   = make(chan string, 1)
 		line2Ch   = make(chan string, 1)
 		cityCh    = make(chan string, 1)
@@ -172,8 +189,21 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 		zipCh     = make(chan string, 1)
 		countryCh = make(chan string, 1)
 
-		errCh = make(chan error, 6)
+		errCh = make(chan error, 7)
 	)
+
+	if address.Slug != "" {
+		wg.Add(1)
+		go ac.cryptor.DecryptField(
+			"slug",
+			address.Slug,
+			slugCh,
+			errCh,
+			&wg,
+		)
+	} else {
+		errCh <- errors.New("slug field is empty so it cannot be decrypted")
+	}
 
 	if address.AddressLine1.Valid {
 		wg.Add(1)
@@ -254,6 +284,7 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 	}
 
 	wg.Wait()
+	close(slugCh)
 	close(line1Ch)
 	close(line2Ch)
 	close(cityCh)
@@ -271,6 +302,7 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 		return fmt.Errorf("address record decryption errors: %v", errors.Join(errs...))
 	}
 
+	address.Slug = <-slugCh
 	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
 	address.AddressLine2 = sql.NullString{String: <-line2Ch, Valid: true}
 	address.City = sql.NullString{String: <-cityCh, Valid: true}

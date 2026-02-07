@@ -37,11 +37,11 @@ service Addresses {
 
 // Address represents a physical or mailing address.
 message Address {
-    string username = 1;
+    string uuid = 1;
     string slug = 2;
     string address_uuid = 3;
     string street_address = 4;
-    string street_address_2 = 5;
+    optional string street_address_2 = 5;
     string city = 6;
     string state_province = 7;
     string postal_code = 8;
@@ -56,7 +56,7 @@ message Address {
 message CreateAddressRequest {
     string username = 1;
     string street_address = 2;
-    string street_address_2 = 3;
+    optional string street_address_2 = 3;
     string city = 4;
     string state_province = 5;
     string postal_code = 6;
@@ -71,7 +71,7 @@ message UpdateAddressRequest {
     string slug = 2;
     string address_uuid = 3;
     string street_address = 4;
-    string street_address_2 = 5;
+    optional string street_address_2 = 5;
     string city = 6;
     string state_province = 7;
     string postal_code = 8;

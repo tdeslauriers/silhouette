@@ -81,12 +81,20 @@ func (ps *phoneStore) GetUsersPhone(ctx context.Context, slug, username string) 
 // CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 func (ps *phoneStore) CreatePhone(ctx context.Context, phone *sqlc.Phone) error {
 
+	// generate slug index
+	slugIndex, err := ps.indexer.ObtainBlindIndex(phone.Slug)
+	if err != nil {
+		return err
+	}
+
 	if err := ps.cryptor.EncryptPhone(phone); err != nil {
 		return err
 	}
 
 	return ps.sql.SavePhone(ctx, sqlc.SavePhoneParams{
 		Uuid:        phone.Uuid,
+		Slug:        phone.Slug,
+		SlugIndex:   slugIndex,
 		CountryCode: phone.CountryCode,
 		PhoneNumber: phone.PhoneNumber,
 		Extension:   phone.Extension,
