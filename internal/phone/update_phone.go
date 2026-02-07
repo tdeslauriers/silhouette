@@ -132,7 +132,7 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 	// build updated record
 	updated := &sqlc.Phone{
 		Uuid: record.Uuid,
-		// Slug not needed for update
+		Slug: record.Slug,
 		// SlugIndex not needed for update
 		CountryCode: sql.NullString{String: countryCode, Valid: countryCode != ""},
 		PhoneNumber: sql.NullString{String: phoneNumber, Valid: phoneNumber != ""},

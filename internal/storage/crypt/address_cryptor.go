@@ -63,7 +63,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 			&wg,
 		)
 	} else {
-		slugCh <- ""
+		errCh <- errors.New("slug field is empty so it cannot be encrypted")
 	}
 
 	if address.AddressLine1.Valid {

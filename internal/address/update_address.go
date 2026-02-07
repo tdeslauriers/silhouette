@@ -135,7 +135,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 	// build updated record
 	updated := &sqlc.Address{
 		Uuid: record.Uuid,
-		// Slug not needed for update
+		Slug: record.Slug,
 		// SlugIndex not needed for update
 		AddressLine1: sql.NullString{String: streetAddress, Valid: streetAddress != ""},
 		AddressLine2: sql.NullString{String: streetAddress_2, Valid: streetAddress_2 != ""},

@@ -58,7 +58,7 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 			&wg,
 		)
 	} else {
-		slugCh <- "" 
+		errCh <- errors.New("slug field is empty so it cannot be encrypted")
 	}
 
 	if phone.CountryCode.Valid {
