@@ -45,25 +45,10 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		With("actor", authCtx.UserClaims.Subject).
 		With("requesting_service", authCtx.SvcClaims.Subject)
 
-	// map scopes from auth context
-	userScopes := authCtx.UserClaims.MapScopes()
-	isScoped := userScopes["w:silouhette:*"] || userScopes["w:silouhette:address:*"]
-
-	// if the user does not have any of the required scopes, self access must be allowed AND
-	// requested username must match the authenticated user's username
-	if !isScoped {
-
-		// redundant, auth interceptor should deny this, but good practice
-		if !authCtx.SelfAccessAllowed {
-			log.Error("access denied: user does not have required scopes and self access is not allowed")
-			return nil, status.Error(codes.PermissionDenied, "access denied")
-		}
-
-		// self access allowed, so requested username must == authenticated user's username
-		if authCtx.UserClaims.Subject != strings.TrimSpace(req.GetUsername()) {
-			log.Error("access denied: user does not have required scopes and requested username does not match authenticated user")
-			return nil, status.Error(codes.PermissionDenied, "access denied")
-		}
+	// authorize the request
+	if err := auth.AuthorizeRequest(authCtx, req.GetUsername()); err != nil {
+		log.Error("failed to authorize request", "err", err.Error())
+		return nil, status.Error(codes.PermissionDenied, "access denied")
 	}
 
 	// validate request fields

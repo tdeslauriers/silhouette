@@ -2,10 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/tdeslauriers/carapace/pkg/jwt"
 	api "github.com/tdeslauriers/silhouette/api/v1"
@@ -69,11 +71,12 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		}
 
 		// get service authorization bearer token from from metadata/headers
+		// dont need to check for self-access-allowed, so can use BuildAuthorized from carapace
 		svcToken := md.Get("service-authorization")
 		authedSvc, err := a.s2s.BuildAuthorized(authConfig.RequiredScopes, svcToken[0])
 		if err != nil {
 			a.logger.Error("failed to authorize service token", "err", err.Error())
-			return nil, status.Error(codes.Unauthenticated, "failed to authorize service token")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
 		}
 
 		// get the access token from the metadata/headers
@@ -83,13 +86,13 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		userJot, err := jwt.BuildFromToken(accessToken[0])
 		if err != nil {
 			a.logger.Error("failed to build JWT from access token", "err", err.Error())
-			return nil, status.Error(codes.Unauthenticated, "failed to build JWT from access token")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
 		}
 
 		// verify signature
 		if err := a.iam.VerifySignature(userJot.BaseString, userJot.Signature); err != nil {
 			a.logger.Error("failed to verify access token signature", "err", err.Error())
-			return nil, status.Error(codes.Unauthenticated, "failed to verify access token signature")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
 		}
 
 		// check access token issued time.
@@ -99,7 +102,7 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 				fmt.Sprintf("access token issued_at is in the future: %s",
 					time.Unix(userJot.Claims.IssuedAt, 0).Format(time.RFC3339)),
 			)
-			return nil, status.Error(codes.PermissionDenied, "access token issued_at is in the future")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
 		}
 
 		// check access token expiry
@@ -108,24 +111,26 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 				fmt.Sprintf("access token expired at: %s",
 					time.Unix(userJot.Claims.Expires, 0).Format(time.RFC3339)),
 			)
-			return nil, status.Error(codes.PermissionDenied, "access token expired")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
 		}
 
-		// check authorization
-		if authConfig.SelfAccessAllowed ||
-			(hasRequiredAudience(definitions.ServiceProfile, userJot.Claims.MapAudiences()) &&
-				hasRequiredScopes(authConfig.RequiredScopes, userJot.Claims.MapScopes())) {
-
-			// add the authorized user and serviceto the context
-			ctx = withAuthContext(ctx, &AuthContext{
-				UserClaims:        &userJot.Claims,
-				SvcClaims:         &authedSvc.Claims,
-				SelfAccessAllowed: authConfig.SelfAccessAllowed,
-			})
-		} else {
-			a.logger.Error("access denied")
-			return nil, status.Error(codes.PermissionDenied, "access denied")
+		// check audiences
+		if !hasRequiredAudience(definitions.ServiceProfile, userJot.Claims.MapAudiences()) {
+			a.logger.Error(
+				fmt.Sprintf("failed to authorize %s", userJot.Claims.Subject),
+				"err", "access token does not have required audience",
+			)
+			return nil, status.Error(codes.PermissionDenied, "forbidden")
 		}
+
+		// add the required scopes, authorized user, and service to the context for
+		// downstream handlers to access and and determin authorization
+		ctx = withAuthContext(ctx, &AuthContext{
+			RequiredScopes:    authConfig.RequiredScopes,
+			UserClaims:        &userJot.Claims,
+			SvcClaims:         &authedSvc.Claims,
+			SelfAccessAllowed: authConfig.SelfAccessAllowed,
+		})
 
 		return handler(ctx, req)
 	}
@@ -198,7 +203,7 @@ func hasRequiredAudience(requiredAudience string, userAudience map[string]bool) 
 	return userAudience[requiredAudience]
 }
 
-// hasRequiredScopes checks if the user any one of the required scopes to access the resource
+// HasRequiredScopes checks if the user any one of the required scopes to access the resource
 func hasRequiredScopes(requiredScopes []string, userScopes map[string]bool) bool {
 
 	// check if the user has any one of the required scopes
@@ -214,6 +219,7 @@ func hasRequiredScopes(requiredScopes []string, userScopes map[string]bool) bool
 
 // AuthContext holds authentication and authorization information for a request
 type AuthContext struct {
+	RequiredScopes    []string    // required scopes for the called method
 	SvcClaims         *jwt.Claims // jwt claims for service tokens
 	UserClaims        *jwt.Claims // jwt claims for user tokens
 	SelfAccessAllowed bool        // indicates if the user is allowed to access their own resources
@@ -239,4 +245,73 @@ func GetAuthContext(ctx context.Context) (*AuthContext, error) {
 	}
 
 	return authCtx, nil
+}
+
+// AuthorizeRequest checks if a user has the correct scopes to access a resource and/or
+// if self-access is allowed when accessing own resources.
+// This impl will also check if the request params include a "username" field and if so,
+// will check if the username in the request matches the authorized user's username in the
+// token claims when self-access is allowed and no other scopes are present.
+func AuthorizeRequest(auth *AuthContext, requestedUsername string) error {
+
+	userScopes := auth.UserClaims.MapScopes()
+
+	// check if user has any of the required scopes
+	if hasRequiredScopes(auth.RequiredScopes, userScopes) {
+		return nil
+	}
+
+	// if user does not have required scopes, check if self access is allowed and
+	// deny access if it is not allowed
+	if !auth.SelfAccessAllowed {
+		return errors.New("user does not have required scopes and self access is not allowed")
+	}
+
+	// quick sanity check on the requested username to prevent
+	// potential DoS or auth bypass with malicious usernames.
+	requestedUsername = strings.TrimSpace(requestedUsername)
+	if !isSafeForComparison(requestedUsername) {
+		return errors.New("requested username is not valid/safe for comparison")
+	}
+
+	// if self access is allowed, check if the requested username matches
+	// the authorized user's username in the token claims
+	if auth.UserClaims.Subject != requestedUsername {
+		return errors.New("for self access, requested username does not match authorized user")
+	}
+
+	return nil
+}
+
+// isSafeForComparison checks if a string is safe for comparison in authorization checks, such as
+// usernames or other lookup/upsert parameter fields.
+func isSafeForComparison(s string) bool {
+
+	// not empty
+	if s == "" {
+		return false
+	}
+
+	// not absurdly long (DoS protection)
+	if len(s) > 1000 {
+		return false
+	}
+
+	// no dangerous characters
+	if containsControlChars(s) {
+		return false
+	}
+
+	return true
+}
+
+// containsControlChars checks if a string contains any control characters, which
+// are not allowed lookup/upsert parameter fields.
+func containsControlChars(s string) bool {
+	for _, r := range s {
+		if r == 0 || (unicode.IsControl(r) && r != '\t' && r != '\n' && r != '\r') {
+			return true
+		}
+	}
+	return false
 }

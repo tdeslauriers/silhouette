@@ -13,7 +13,7 @@ service Profiles {
     // This should happen during user registration.
     rpc CreateProfile(CreateProfileRequest) returns (Profile){
         option (auth_config) = {
-            required_scopes: ["w:silhouette:*"]
+            required_scopes: ["w:silhouette:*","r:silhouette:profile:*"]
             self_access_allowed: false
         };
     };
@@ -43,7 +43,7 @@ service Profiles {
 // the identity service account data, as well as UI preferences, etc.
 message Profile {
   string username = 1;
-  string nick_name = 2;
+  optional string nick_name = 2;
   bool dark_mode = 3;
   repeated Address address = 4;
   repeated Phone phone = 5;
