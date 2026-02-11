@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
 	"github.com/tdeslauriers/carapace/pkg/data"
 	"github.com/tdeslauriers/silhouette/internal/storage/crypt"
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"
@@ -81,6 +82,32 @@ func (s *addressStore) GetAddress(ctx context.Context, slug, username string) (*
 // CreateAddress creates a new address record in the database, encrypting the fields before storage.
 func (s *addressStore) CreateAddress(ctx context.Context, address *sqlc.Address) error {
 
+	// if no uuid, create one
+	// this should never happen since the service layer should create prior to calling
+	if address.Uuid == "" {
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		address.Uuid = id.String()
+	}
+
+	// if no slug, create one
+	// this should never happen since the service layer should create prior to calling
+	if address.Slug == "" {
+		slug, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		address.Slug = slug.String()
+	}
+
+	// create slug index
+	index, err := s.indexer.ObtainBlindIndex(address.Slug)
+	if err != nil {
+		return err
+	}
+
 	// encrypt the address record's fields
 	if err := s.cryptor.EncryptAddress(address); err != nil {
 		return err
@@ -89,6 +116,8 @@ func (s *addressStore) CreateAddress(ctx context.Context, address *sqlc.Address)
 	// store the record in the db
 	return s.sql.SaveAddress(ctx, sqlc.SaveAddressParams{
 		Uuid:           address.Uuid,
+		Slug:           address.Slug,
+		SlugIndex:      index,
 		StreetAddress:  address.AddressLine1,
 		StreetAddress2: address.AddressLine2,
 		City:           address.City,

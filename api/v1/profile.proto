@@ -13,8 +13,9 @@ service Profiles {
     // This should happen during user registration.
     rpc CreateProfile(CreateProfileRequest) returns (Profile){
         option (auth_config) = {
-            required_scopes: ["w:silhouette:*","r:silhouette:profile:*"]
+            required_scopes: ["w:s2s:silhouette:*","w:s2s:silhouette:profile:*"]
             self_access_allowed: false
+            s2s_only_allowed: true
         };
     };
 
@@ -52,7 +53,7 @@ message Profile {
 // CreateProfileRequest is the request message for creating a new user profile.
 message CreateProfileRequest {
     string username = 1;
-    string nick_name = 2;
+    optional string nick_name = 2;
     // darkmode enabled by default
     // address and phone not collected at registration
 }
@@ -69,7 +70,7 @@ message UpdateProfileRequest {
     string username = 1;
 
     // nick_name is updatable
-    string nick_name = 2;
+    optional string nick_name = 2;
 
     // dark_mode is updatable
     bool dark_mode = 3;

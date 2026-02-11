@@ -82,6 +82,32 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		// get the access token from the metadata/headers
 		accessToken := md.Get("authorization")
 
+		// handle missing access token when service-only access is not allowed
+		if !authConfig.S2SOnlyAllowed && len(accessToken) == 0 {
+			a.logger.Error("no access token provided and service-only access is not allowed")
+			return nil, status.Error(codes.Unauthenticated, "unauthorized")
+		}
+
+		// if the service token is missing, validate the service only access is allowed and
+		// return an error if it is not
+		if len(accessToken) == 0 {
+			if !authConfig.S2SOnlyAllowed {
+				a.logger.Error("no access token provided and service-only access is not allowed")
+				return nil, status.Error(codes.Unauthenticated, "unauthorized")
+			}
+
+			// add the required scopes, authorized user, and service to the context for
+			// downstream handlers to access and and determin authorization
+			ctx = withAuthContext(ctx, &AuthContext{
+				RequiredScopes:    authConfig.RequiredScopes,
+				UserClaims:        nil, // no user claims for service-only requests
+				SvcClaims:         &authedSvc.Claims,
+				SelfAccessAllowed: authConfig.SelfAccessAllowed,
+			})
+
+			return handler(ctx, req)
+		}
+
 		// parse the access token
 		userJot, err := jwt.BuildFromToken(accessToken[0])
 		if err != nil {
@@ -223,6 +249,7 @@ type AuthContext struct {
 	SvcClaims         *jwt.Claims // jwt claims for service tokens
 	UserClaims        *jwt.Claims // jwt claims for user tokens
 	SelfAccessAllowed bool        // indicates if the user is allowed to access their own resources
+	S2sOnlyAllowed    bool        // indicates if service-only access is allowed (no user context required)
 }
 
 // contextKey is a private type to prevent collisions with other packages

@@ -85,8 +85,6 @@ func (ps *profileStore) CreateProfile(ctx context.Context, profile *sqlc.Profile
 	if err != nil {
 		return err
 	}
-	profile.UserIndex = index
-
 	// encrypt sensitive fields
 	if err := ps.profileCryptor.EncryptProfile(profile); err != nil {
 		return err
@@ -96,7 +94,7 @@ func (ps *profileStore) CreateProfile(ctx context.Context, profile *sqlc.Profile
 	return ps.sql.SaveProfile(ctx, sqlc.SaveProfileParams{
 		Uuid:      profile.Uuid,
 		Username:  profile.Username,
-		UserIndex: profile.UserIndex,
+		UserIndex: index,
 		NickName:  profile.NickName,
 		DarkMode:  profile.DarkMode,
 		UpdatedAt: profile.UpdatedAt,

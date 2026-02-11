@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/google/uuid"
 	"github.com/tdeslauriers/carapace/pkg/data"
 	"github.com/tdeslauriers/silhouette/internal/storage/crypt"
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"
@@ -80,6 +81,26 @@ func (ps *phoneStore) GetUsersPhone(ctx context.Context, slug, username string) 
 
 // CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 func (ps *phoneStore) CreatePhone(ctx context.Context, phone *sqlc.Phone) error {
+
+	// if no uuid, create one
+	// this should never happen since the service layer should create prior to calling
+	if phone.Uuid == "" {
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		phone.Uuid = id.String()
+	}
+
+	// if no slug, create one
+	// this should never happen since the service layer should create prior to calling
+	if phone.Slug == "" {
+		slug, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		phone.Slug = slug.String()
+	}
 
 	// generate slug index
 	slugIndex, err := ps.indexer.ObtainBlindIndex(phone.Slug)

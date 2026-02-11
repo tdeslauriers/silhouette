@@ -36,7 +36,6 @@ func NewProfileServer(profileStore storage.ProfileStore) api.ProfilesServer {
 type ProfileUpsert interface {
 	GetUsername() string
 	GetNickName() string
-	GetDarkMode() bool
 }
 
 // ValidateCmd validates the fields of a ProfileUpsert request model

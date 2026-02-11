@@ -15,6 +15,11 @@ message AuthConfig {
     repeated string required_scopes = 1;
 
     // self_access_allowed indicates whether a user is allowed to access their own resources
-    bool self_access_allowed = 2;
-
+    bool self_access_allowed = 2; 
+    
+    // service_only_allowed indicates whether access is allowed for service accounts without user context
+    // ie, service-to-service connections where there is no user on whose behalf the service is acting. 
+    // If true, then requests authenticated with a valid service account token that has the required scopes will 
+    // be allowed access, even if there is no user context or claims in the token.
+    bool s2s_only_allowed = 3; 
 }
