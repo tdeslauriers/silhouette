@@ -16,9 +16,9 @@ import (
 // CompleteProfile is a model representing a Profile row with nested Address and Phone slices
 // the model includes the database fields for Profile, Address, and Phone
 type CompleteProfile struct {
-	Profile   sqlc.Profile
-	Addresses []sqlc.Address
-	Phones    []sqlc.Phone
+	Profile   *sqlc.Profile
+	Addresses []*sqlc.Address
+	Phones    []*sqlc.Phone
 }
 
 // ProfileStore defines the interface for storing and retrieving user profiles.
@@ -196,7 +196,7 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 
 	var (
 		wg        sync.WaitGroup
-		profileCh = make(chan sqlc.Profile, 1)
+		profileCh = make(chan *sqlc.Profile, 1)
 		addressCh = make(chan sqlc.Address, len(addressMap))
 		phoneCh   = make(chan sqlc.Phone, len(phoneMap))
 		errCh     = make(chan error, 1+len(addressMap)+len(phoneMap))
@@ -210,7 +210,7 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 			errCh <- err
 			return
 		}
-		profileCh <- p
+		profileCh <- &p
 	}(profile)
 
 	// decrypt addresses
@@ -256,14 +256,14 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 	}
 
 	// collect the decrypted profile, addresses, and phones
-	addresses := make([]sqlc.Address, 0, len(addressCh))
+	addresses := make([]*sqlc.Address, 0, len(addressCh))
 	for address := range addressCh {
-		addresses = append(addresses, address)
+		addresses = append(addresses, &address)
 	}
 
-	phones := make([]sqlc.Phone, 0, len(phoneCh))
+	phones := make([]*sqlc.Phone, 0, len(phoneCh))
 	for phone := range phoneCh {
-		phones = append(phones, phone)
+		phones = append(phones, &phone)
 	}
 
 	return &CompleteProfile{
@@ -285,6 +285,7 @@ func (ps *profileStore) UpdateProfile(ctx context.Context, profile *sqlc.Profile
 		NickName:  profile.NickName,
 		DarkMode:  profile.DarkMode,
 		UpdatedAt: profile.UpdatedAt,
+		Uuid:      profile.Uuid,
 	})
 }
 

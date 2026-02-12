@@ -63,8 +63,6 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		return nil, status.Error(codes.InvalidArgument, "address slug must be a valid UUID")
 	}
 
-	// do not need to fetch the profile, auth validates user exists
-
 	// get the existing record record by slug and username to
 	// ensure the record exists and belongs to the requested user
 	record, err := as.addressStore.GetAddress(ctx, req.GetSlug(), req.GetUsername())
