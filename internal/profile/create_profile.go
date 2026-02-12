@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // CreateProfile creates a new profile record for a user in the database.
@@ -86,8 +87,10 @@ func (ps *profileServer) CreateProfile(ctx context.Context, req *api.CreateProfi
 
 	// build response
 	return &api.Profile{
-		Username: record.Username,
-		NickName: proto.String(record.NickName.String),
-		DarkMode: record.DarkMode,
+		Username:  record.Username,
+		NickName:  proto.String(record.NickName.String),
+		DarkMode:  record.DarkMode,
+		UpdatedAt: timestamppb.New(record.UpdatedAt),
+		CreatedAt: timestamppb.New(record.CreatedAt),
 	}, nil
 }

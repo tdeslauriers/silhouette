@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // UpdateProfile updates an existing profile record for a user in the database.
@@ -121,8 +122,11 @@ func (ps *profileServer) UpdateProfile(ctx context.Context, req *api.UpdateProfi
 
 	// return the updated record
 	return &api.Profile{
-		Username: record.Username,
-		NickName: proto.String(nickname),
-		DarkMode: darkMode,
+		Uuid:      record.Uuid,
+		Username:  record.Username,
+		NickName:  proto.String(nickname),
+		DarkMode:  darkMode,
+		UpdatedAt: timestamppb.New(updated.UpdatedAt),
+		CreatedAt: timestamppb.New(record.CreatedAt),
 	}, nil
 }
