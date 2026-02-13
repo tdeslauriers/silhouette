@@ -112,5 +112,7 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 		profile.Phone = phones
 	}
 
+	log.Info(fmt.Sprintf("successfully retrieved %s profile record", req.GetUsername()))
+
 	return profile, nil
 }

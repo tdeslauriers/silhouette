@@ -15,6 +15,7 @@ const (
 	PackageAuth    = "auth"
 	PackagePhone   = "phone"
 	PackageProfile = "profile"
+	PackageServer  = "server"
 )
 
 // component names
@@ -25,4 +26,5 @@ const (
 	ComponentAuthInterceptor = "auth_interceptor"
 	ComponentPhoneServer     = "phone_server"
 	ComponentProfileServer   = "profile_server"
+	ComponentServer          = "server"
 )
