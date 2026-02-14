@@ -13,6 +13,7 @@ const (
 
 	PackageAddress = "address"
 	PackageAuth    = "auth"
+	PackageMain    = "main"
 	PackagePhone   = "phone"
 	PackageProfile = "profile"
 	PackageServer  = "server"
@@ -24,7 +25,8 @@ const (
 
 	ComponentAddressServer   = "address_server"
 	ComponentAuthInterceptor = "auth_interceptor"
+	ComponentMain            = "main"
 	ComponentPhoneServer     = "phone_server"
 	ComponentProfileServer   = "profile_server"
-	ComponentServer          = "server"
+	ComponentServer          = "silhouette server"
 )

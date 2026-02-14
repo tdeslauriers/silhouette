@@ -15,7 +15,7 @@ service Profiles {
     // This should happen during user registration.
     rpc CreateProfile(CreateProfileRequest) returns (Profile){
         option (auth_config) = {
-            required_scopes: ["w:s2s:silhouette:*","w:s2s:silhouette:profile:*"]
+            required_scopes: ["w:silhouette:s2s:*","w:silhouette:s2s:profile:*"]
             self_access_allowed: false
             s2s_only_allowed: true
         };
