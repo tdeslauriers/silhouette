@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+
 	"github.com/tdeslauriers/carapace/pkg/data"
 	"github.com/tdeslauriers/silhouette/internal/storage/crypt"
 	"github.com/tdeslauriers/silhouette/internal/storage/sql/sqlc"

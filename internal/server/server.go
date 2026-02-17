@@ -40,6 +40,7 @@ func New(cfg *config.Config) (Server, error) {
 	serverPki := &connect.Pki{
 		CertFile: *cfg.Certs.ServerCert,
 		KeyFile:  *cfg.Certs.ServerKey,
+		CaFiles:  []string{*cfg.Certs.ServerCa},
 	}
 
 	serverTlsConfig, err := connect.NewTlsServerConfig(cfg.Tls, serverPki).Build()
@@ -131,6 +132,7 @@ type server struct {
 func (s *server) Run() error {
 
 	// set up tls
+	s.serverTls.MinVersion = tls.VersionTLS12
 	tlsCreds := credentials.NewTLS(s.serverTls)
 
 	// instantiate auth interceptor

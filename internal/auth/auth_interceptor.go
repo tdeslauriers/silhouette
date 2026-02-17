@@ -186,7 +186,7 @@ func (a *authInterceptor) getAuthConfig(fullMethod string) (*api.AuthConfig, err
 	}
 
 	// get the authentication configuration from the method options
-	opts := methodDesc.Options().(*api.AuthConfig)
+	opts := methodDesc.Options()
 	if opts == nil {
 		return nil, fmt.Errorf("no authentication configuration found for method %s in service %s", methodName, svcName)
 	}

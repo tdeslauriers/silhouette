@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -48,10 +49,16 @@ func (ps *profileServer) CreateProfile(ctx context.Context, req *api.CreateProfi
 
 	// check to see if profile already exists for the user, and return an error if it does since
 	// don't want to allow multiple profiles per user
-	_, err = ps.profileStore.GetProfile(ctx, req.GetUsername())
+	_, err = ps.profileStore.GetProfile(ctx, strings.TrimSpace(req.GetUsername()))
 	if err == nil {
-		log.Error("profile already exists for user", "username", req.GetUsername())
+		log.Error(fmt.Sprintf("profile %s already exists for user", strings.TrimSpace(req.GetUsername())))
 		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("profile %s already exists for user", strings.TrimSpace(req.GetUsername())))
+	} else {
+
+		log.Error(fmt.Sprintf("failed to lookup %s", strings.TrimSpace(req.GetUsername())), "err", err.Error())
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, status.Error(codes.Internal, "failed to lookup user profile")
+		}
 	}
 
 	// build profile record

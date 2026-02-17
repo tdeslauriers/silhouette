@@ -70,8 +70,6 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		countryCodeCh <- ""
 	}
 
 	if phone.PhoneNumber.Valid {
@@ -96,8 +94,6 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		extCh <- ""
 	}
 
 	if phone.PhoneType.Valid {
@@ -131,9 +127,23 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 	}
 
 	phone.Slug = <-slugCh
-	phone.CountryCode = sql.NullString{String: <-countryCodeCh, Valid: true}
+
+	cc, ok := <-countryCodeCh
+	if ok {
+		phone.CountryCode = sql.NullString{String: cc, Valid: true}
+	} else {
+		phone.CountryCode = sql.NullString{String: "", Valid: false}
+	}
+
 	phone.PhoneNumber = sql.NullString{String: <-phNumberCh, Valid: true}
-	phone.Extension = sql.NullString{String: <-extCh, Valid: true}
+
+	ext, ok := <-extCh
+	if ok {
+		phone.Extension = sql.NullString{String: ext, Valid: true}
+	} else {
+		phone.Extension = sql.NullString{String: "", Valid: false}
+	}
+
 	phone.PhoneType = sql.NullString{String: <-phTypeCh, Valid: true}
 
 	return nil

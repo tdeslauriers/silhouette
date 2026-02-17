@@ -80,7 +80,7 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 		errCh <- errors.New("address_line_1 field is empty so it cannot be encrypted")
 	}
 
-	if address.AddressLine2.Valid {
+	if address.AddressLine2.Valid && len(address.AddressLine2.String) > 0 {
 		wg.Add(1)
 		go ac.cryptor.EncryptField(
 			"address_line_2",
@@ -89,8 +89,6 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		slugCh <- ""
 	}
 
 	if address.City.Valid {
@@ -166,7 +164,14 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 
 	address.Slug = <-slugCh
 	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
-	address.AddressLine2 = sql.NullString{String: <-line2Ch, Valid: true}
+
+	line2, ok := <-line2Ch
+	if ok {
+		address.AddressLine2 = sql.NullString{String: line2, Valid: true}
+	} else {
+		address.AddressLine2 = sql.NullString{String: "", Valid: false}
+	}
+
 	address.City = sql.NullString{String: <-cityCh, Valid: true}
 	address.State = sql.NullString{String: <-stateCh, Valid: true}
 	address.Zip = sql.NullString{String: <-zipCh, Valid: true}
@@ -304,7 +309,14 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 
 	address.Slug = <-slugCh
 	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
-	address.AddressLine2 = sql.NullString{String: <-line2Ch, Valid: true}
+
+	line2, ok := <-line2Ch
+	if ok {
+		address.AddressLine2 = sql.NullString{String: line2, Valid: true}
+	} else {
+		address.AddressLine2 = sql.NullString{String: "", Valid: false}
+	}
+
 	address.City = sql.NullString{String: <-cityCh, Valid: true}
 	address.State = sql.NullString{String: <-stateCh, Valid: true}
 	address.Zip = sql.NullString{String: <-zipCh, Valid: true}

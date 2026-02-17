@@ -60,7 +60,7 @@ func (pc *profileCryptor) EncryptProfile(profile *sqlc.Profile) error {
 		errCh <- errors.New("username field is empty so it cannot be encrypted")
 	}
 
-	if profile.NickName.Valid {
+	if profile.NickName.Valid && len(profile.NickName.String) > 0 {
 		wg.Add(1)
 		go pc.cryptor.EncryptField(
 			"nickname",
@@ -69,8 +69,6 @@ func (pc *profileCryptor) EncryptProfile(profile *sqlc.Profile) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		nicknameCh <- ""
 	}
 
 	wg.Wait()
@@ -88,7 +86,14 @@ func (pc *profileCryptor) EncryptProfile(profile *sqlc.Profile) error {
 	}
 
 	profile.Username = <-usernameCh
-	profile.NickName = sql.NullString{String: <-nicknameCh, Valid: true}
+
+	// nickname is optional
+	nickname, ok := <-nicknameCh
+	if ok {
+		profile.NickName = sql.NullString{String: nickname, Valid: true}
+	} else {
+		profile.NickName = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }
@@ -118,7 +123,7 @@ func (pc *profileCryptor) DecryptProfile(profile *sqlc.Profile) error {
 		errCh <- errors.New("username field is empty so it cannot be decrypted")
 	}
 
-	if profile.NickName.Valid {
+	if profile.NickName.Valid && len(profile.NickName.String) > 0 {
 		wg.Add(1)
 		go pc.cryptor.DecryptField(
 			"nickname",
@@ -127,8 +132,6 @@ func (pc *profileCryptor) DecryptProfile(profile *sqlc.Profile) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		nicknameCh <- ""
 	}
 
 	wg.Wait()
@@ -146,7 +149,14 @@ func (pc *profileCryptor) DecryptProfile(profile *sqlc.Profile) error {
 	}
 
 	profile.Username = <-usernameCh
-	profile.NickName = sql.NullString{String: <-nicknameCh, Valid: true}
+
+	// nickname is optional
+	nickname, ok := <-nicknameCh
+	if ok {
+		profile.NickName = sql.NullString{String: nickname, Valid: true}
+	} else {
+		profile.NickName = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }
