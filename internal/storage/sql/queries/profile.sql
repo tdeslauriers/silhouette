@@ -32,10 +32,10 @@ SELECT
     ph.updated_at AS phone_updated_at,
     ph.created_at AS phone_created_at
 FROM profile p
-JOIN profile_address pa ON p.uuid = pa.profile_uuid
-JOIN address a ON pa.address_uuid = a.uuid
-JOIN profile_phone pp ON p.uuid = pp.profile_uuid
-JOIN phone ph ON pp.phone_uuid = ph.uuid
+LEFT JOIN profile_address pa ON p.uuid = pa.profile_uuid
+LEFT JOIN address a ON pa.address_uuid = a.uuid
+LEFT JOIN profile_phone pp ON p.uuid = pp.profile_uuid
+LEFT JOIN phone ph ON pp.phone_uuid = ph.uuid
 WHERE p.user_index = sqlc.arg("user_index");
 
 -- name: SaveProfile :exec

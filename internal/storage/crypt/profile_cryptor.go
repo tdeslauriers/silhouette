@@ -56,8 +56,6 @@ func (pc *profileCryptor) EncryptProfile(profile *sqlc.Profile) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		errCh <- errors.New("username field is empty so it cannot be encrypted")
 	}
 
 	if profile.NickName.Valid && len(profile.NickName.String) > 0 {

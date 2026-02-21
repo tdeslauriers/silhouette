@@ -109,7 +109,8 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		}
 
 		// parse the access token
-		userJot, err := jwt.BuildFromToken(accessToken[0])
+		trimmed := strings.TrimPrefix(accessToken[0], "Bearer ")
+		userJot, err := jwt.BuildFromToken(trimmed)
 		if err != nil {
 			a.logger.Error("failed to build JWT from access token", "err", err.Error())
 			return nil, status.Error(codes.Unauthenticated, "unauthorized")

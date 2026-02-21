@@ -163,34 +163,35 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 	for _, record := range records {
 
 		// addresses
-		if _, ok := addressMap[record.AddressUuid]; !ok {
-			addressMap[record.AddressUuid] = sqlc.Address{
-				Uuid:         record.AddressUuid,
-				Slug:         record.AddressSlug,
+		if _, ok := addressMap[record.AddressUuid.String]; !ok && record.AddressUuid.Valid {
+
+			addressMap[record.AddressUuid.String] = sqlc.Address{
+				Uuid:         record.AddressUuid.String,
+				Slug:         record.AddressSlug.String,
 				AddressLine1: record.AddressLine1,
 				AddressLine2: record.AddressLine2,
 				City:         record.City,
 				State:        record.State,
 				Zip:          record.Zip,
 				Country:      record.AddressCountry,
-				IsCurrent:    record.AddressIsCurrent,
-				UpdatedAt:    record.AddressUpdatedAt,
-				CreatedAt:    record.AddressCreatedAt,
+				IsCurrent:    record.AddressIsCurrent.Bool,
+				UpdatedAt:    record.AddressUpdatedAt.Time,
+				CreatedAt:    record.AddressCreatedAt.Time,
 			}
 		}
 
 		// phones
-		if _, ok := phoneMap[record.PhoneUuid]; !ok {
-			phoneMap[record.PhoneUuid] = sqlc.Phone{
-				Uuid:        record.PhoneUuid,
-				Slug:        record.PhoneSlug,
+		if _, ok := phoneMap[record.PhoneUuid.String]; !ok && record.PhoneUuid.Valid {
+			phoneMap[record.PhoneUuid.String] = sqlc.Phone{
+				Uuid:        record.PhoneUuid.String,
+				Slug:        record.PhoneSlug.String,
 				CountryCode: record.PhoneCountryCode,
 				PhoneNumber: record.PhoneNumber,
 				Extension:   record.Extension,
 				PhoneType:   record.PhoneType,
-				IsCurrent:   record.PhoneIsCurrent,
-				UpdatedAt:   record.PhoneUpdatedAt,
-				CreatedAt:   record.PhoneCreatedAt,
+				IsCurrent:   record.PhoneIsCurrent.Bool,
+				UpdatedAt:   record.PhoneUpdatedAt.Time,
+				CreatedAt:   record.PhoneCreatedAt.Time,
 			}
 		}
 	}
