@@ -107,7 +107,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 
 	// return the created address record
 	return &api.Address{
-		AddressUuid:     record.Uuid,
+		Uuid:            record.Uuid,
 		Slug:            record.Slug,
 		StreetAddress:   record.AddressLine1.String,
 		StreetAddress_2: proto.String(record.AddressLine2.String),
