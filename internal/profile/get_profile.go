@@ -80,6 +80,7 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 			City:            address.City.String,
 			StateProvince:   address.State.String,
 			PostalCode:      address.Zip.String,
+			IsCurrent:       address.IsCurrent,
 			Country:         address.Country.String,
 			UpdatedAt:       timestamppb.New(address.UpdatedAt),
 			CreatedAt:       timestamppb.New(address.CreatedAt),

@@ -70,11 +70,18 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Internal, "failed to generate uuid for new address record")
 	}
 
+	// create slug
+	slug, err := uuid.NewRandom()
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to generate slug for %s's new address record", req.GetUsername()), "err", err.Error())
+		return nil, status.Error(codes.Internal, "failed to generate slug for new address record")
+	}
+
 	now := time.Now().UTC()
 
 	record := &sqlc.Address{
 		Uuid:         id.String(),
-		Slug:         id.String(),
+		Slug:         slug.String(),
 		AddressLine1: sql.NullString{String: strings.TrimSpace(req.GetStreetAddress()), Valid: true},
 		AddressLine2: sql.NullString{
 			String: strings.TrimSpace(req.GetStreetAddress_2()),
@@ -84,7 +91,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		State:     sql.NullString{String: strings.TrimSpace(req.GetStateProvince()), Valid: true},
 		Zip:       sql.NullString{String: strings.TrimSpace(req.GetPostalCode()), Valid: true},
 		Country:   sql.NullString{String: strings.TrimSpace(req.GetCountry()), Valid: true},
-		IsCurrent: true,
+		IsCurrent: req.GetIsCurrent(),
 		UpdatedAt: now,
 		CreatedAt: now,
 	}
@@ -95,7 +102,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address record for %s", req.GetUsername()))
 	}
 
-	log.Info(fmt.Sprintf("successfuly persisted address record - slug %s for %s", record.Slug, req.GetUsername()))
+	log.Info(fmt.Sprintf("successfuly persisted address record - slug %s for %s", slug, req.GetUsername()))
 
 	// persist xref record
 	if err := as.xrefStore.CreateProfileAddressXref(ctx, profile.Uuid, record.Uuid); err != nil {
@@ -103,18 +110,19 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address xref record for %s", req.GetUsername()))
 	}
 
-	log.Info(fmt.Sprintf("succcessfully persisted profile-address record for %s and address - slug %s", req.GetUsername(), record.Slug))
+	log.Info(fmt.Sprintf("succcessfully persisted profile-address record for %s and address - slug %s", req.GetUsername(), slug))
 
 	// return the created address record
+	// note: cant user record cuz model is encrypted when it is saved.
 	return &api.Address{
-		Uuid:            record.Uuid,
-		Slug:            record.Slug,
-		StreetAddress:   record.AddressLine1.String,
-		StreetAddress_2: proto.String(record.AddressLine2.String),
-		City:            record.City.String,
-		StateProvince:   record.State.String,
-		PostalCode:      record.Zip.String,
-		Country:         record.Country.String,
+		Uuid:            id.String(),
+		Slug:            slug.String(),
+		StreetAddress:   strings.TrimSpace(req.GetStreetAddress()),
+		StreetAddress_2: proto.String(strings.TrimSpace(req.GetStreetAddress_2())),
+		City:            strings.TrimSpace(req.GetCity()),
+		StateProvince:   strings.TrimSpace(req.GetStateProvince()),
+		PostalCode:      strings.TrimSpace(req.GetPostalCode()),
+		Country:         strings.TrimSpace(req.GetCountry()),
 		IsCurrent:       record.IsCurrent,
 		UpdatedAt:       timestamppb.New(record.UpdatedAt),
 		CreatedAt:       timestamppb.New(record.CreatedAt),

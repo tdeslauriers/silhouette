@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS address (
     address_line_2 VARCHAR(255), 
     city VARCHAR(128),
     state VARCHAR(128),
-    zip VARCHAR(32),
+    zip VARCHAR(128),
     country VARCHAR(128),
     is_current BOOLEAN NOT NULL DEFAULT TRUE,
     updated_at TIMESTAMP NOT NULL,

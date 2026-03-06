@@ -109,27 +109,28 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create phone record for %s", req.GetUsername()))
 	}
 
-	log.Info(fmt.Sprintf("successfully persisted phone record (slug %s) for %s", record.Slug, profile.Username))
+	log.Info(fmt.Sprintf("successfully persisted phone record (slug %s) for %s", slug, profile.Username))
 
 	// persist profile-phone cross-reference
-	if err := ps.xrefStore.CreateProfilePhoneXref(ctx, profile.Uuid, record.Slug); err != nil {
+	if err := ps.xrefStore.CreateProfilePhoneXref(ctx, profile.Uuid, slug.String()); err != nil {
 		log.Error(fmt.Sprintf("failed to create profile-phone cross-reference for %s", req.GetUsername()), "err", err.Error())
 		return nil, status.Error(codes.Internal,
-			fmt.Sprintf("failed to create profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), record.Slug))
+			fmt.Sprintf("failed to create profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), slug))
 	}
 
 	log.Info(
-		fmt.Sprintf("successfully persisted profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), record.Slug),
+		fmt.Sprintf("successfully persisted profile-phone cross-reference for %s and phone (slug %s)", req.GetUsername(), slug),
 	)
 
 	// return the created phone record
+	// NOTE: cant return record because the model is encrypted on save.
 	return &api.Phone{
-		PhoneUuid:   record.Uuid,
-		Slug:        record.Slug,
-		CountryCode: record.CountryCode.String,
-		PhoneNumber: record.PhoneNumber.String,
-		Extension:   proto.String(record.Extension.String),
-		PhoneType:   ConvertPhoneType(record.PhoneType.String),
+		PhoneUuid:   id.String(),
+		Slug:        slug.String(),
+		CountryCode: countryCode,
+		PhoneNumber: phoneNumber,
+		Extension:   proto.String(extension),
+		PhoneType:   ConvertPhoneType(phoneType),
 		IsCurrent:   record.IsCurrent,
 		UpdatedAt:   timestamppb.New(record.UpdatedAt),
 		CreatedAt:   timestamppb.New(record.CreatedAt),
