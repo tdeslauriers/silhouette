@@ -15,6 +15,12 @@ JOIN profile p ON pa.profile_uuid = p.uuid
 WHERE a.slug_index = sqlc.arg("slug_index")
 AND p.user_index = sqlc.arg("user_index");
 
+-- name: CountAddressesForUser :one
+SELECT COUNT(*)
+FROM address a
+JOIN profile_address pa ON a.uuid = pa.address_uuid
+JOIN profile p ON pa.profile_uuid = p.uuid
+WHERE p.user_index = sqlc.arg("user_index");
 
 -- name: SaveAddress :exec
 INSERT INTO address (

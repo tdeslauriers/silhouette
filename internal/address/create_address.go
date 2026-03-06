@@ -63,6 +63,19 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to look up profile for %s", req.GetUsername()))
 	}
 
+	// check how many address records currently exist for the user
+	// only allowed to have 3 address records, including non-current records
+	addressCount, err := as.addressStore.CountAddresses(ctx, req.GetUsername())
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to get address count for %s", req.GetUsername()), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address count for %s", req.GetUsername()))
+	}
+
+	if addressCount >= 3 {
+		log.Error(fmt.Sprintf("address record limit reached for %s - count %d", req.GetUsername(), addressCount))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("address record limit reached for %s", req.GetUsername()))
+	}
+
 	// create address record
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -77,23 +90,33 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Internal, "failed to generate slug for new address record")
 	}
 
+	// prepare fields
+	streetAddress := strings.TrimSpace(req.GetStreetAddress())
+	city := strings.TrimSpace(req.GetCity())
+	stateProvince := strings.TrimSpace(req.GetStateProvince())
+	postalCode := strings.TrimSpace(req.GetPostalCode())
+	country := strings.TrimSpace(req.GetCountry())
+
+	var streetAddress_2 string
+	if len(req.GetStreetAddress_2()) > 0 {
+		streetAddress_2 = strings.TrimSpace(req.GetStreetAddress_2())
+	}
+
 	now := time.Now().UTC()
 
 	record := &sqlc.Address{
-		Uuid:         id.String(),
-		Slug:         slug.String(),
-		AddressLine1: sql.NullString{String: strings.TrimSpace(req.GetStreetAddress()), Valid: true},
-		AddressLine2: sql.NullString{
-			String: strings.TrimSpace(req.GetStreetAddress_2()),
-			Valid:  req.GetStreetAddress_2() != "",
-		},
-		City:      sql.NullString{String: strings.TrimSpace(req.GetCity()), Valid: true},
-		State:     sql.NullString{String: strings.TrimSpace(req.GetStateProvince()), Valid: true},
-		Zip:       sql.NullString{String: strings.TrimSpace(req.GetPostalCode()), Valid: true},
-		Country:   sql.NullString{String: strings.TrimSpace(req.GetCountry()), Valid: true},
-		IsCurrent: req.GetIsCurrent(),
-		UpdatedAt: now,
-		CreatedAt: now,
+		Uuid: id.String(),
+		Slug: slug.String(),
+		// SlugIndex not needed for update
+		AddressLine1: sql.NullString{String: streetAddress, Valid: streetAddress != ""},
+		AddressLine2: sql.NullString{String: streetAddress_2, Valid: streetAddress_2 != ""},
+		City:         sql.NullString{String: city, Valid: city != ""},
+		State:        sql.NullString{String: stateProvince, Valid: stateProvince != ""},
+		Zip:          sql.NullString{String: postalCode, Valid: postalCode != ""},
+		Country:      sql.NullString{String: country, Valid: country != ""},
+		IsCurrent:    req.GetIsCurrent(),
+		UpdatedAt:    now,
+		CreatedAt:    now,
 	}
 
 	// persist address record
@@ -117,12 +140,12 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 	return &api.Address{
 		Uuid:            id.String(),
 		Slug:            slug.String(),
-		StreetAddress:   strings.TrimSpace(req.GetStreetAddress()),
-		StreetAddress_2: proto.String(strings.TrimSpace(req.GetStreetAddress_2())),
-		City:            strings.TrimSpace(req.GetCity()),
-		StateProvince:   strings.TrimSpace(req.GetStateProvince()),
-		PostalCode:      strings.TrimSpace(req.GetPostalCode()),
-		Country:         strings.TrimSpace(req.GetCountry()),
+		StreetAddress:   streetAddress,
+		StreetAddress_2: proto.String(streetAddress_2),
+		City:            city,
+		StateProvince:   stateProvince,
+		PostalCode:      postalCode,
+		Country:         country,
 		IsCurrent:       record.IsCurrent,
 		UpdatedAt:       timestamppb.New(record.UpdatedAt),
 		CreatedAt:       timestamppb.New(record.CreatedAt),

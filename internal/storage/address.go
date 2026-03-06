@@ -16,6 +16,9 @@ type AddressStore interface {
 	// GetAddress retrieves a user's address from the database and decrypts the record.
 	GetAddress(ctx context.Context, slug, username string) (*sqlc.Address, error)
 
+	// CountAddresses retrieves a count of how many address records exist for a given user.
+	CountAddresses(ctx context.Context, username string) (int64, error)
+
 	// CreateAddress creates a new address record in the database, encrypting the fields before storage.
 	CreateAddress(ctx context.Context, address *sqlc.Address) error
 
@@ -77,6 +80,20 @@ func (s *addressStore) GetAddress(ctx context.Context, slug, username string) (*
 	}
 
 	return &address, nil
+}
+
+// CountAddresses retrieves a count of how many address records exist for a given user.
+func (s *addressStore) CountAddresses(ctx context.Context, username string) (int64, error) {
+
+	// get username index
+	userIndex, err := s.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return 0, err
+	}
+
+	// fetch count from the db
+	count, err := s.sql.CountAddressesForUser(ctx, userIndex)
+	return count, err
 }
 
 // CreateAddress creates a new address record in the database, encrypting the fields before storage.
