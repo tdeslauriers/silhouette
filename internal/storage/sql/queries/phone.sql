@@ -15,6 +15,20 @@ JOIN profile pr ON pp.profile_uuid = pr.uuid
 WHERE p.slug_index = sqlc.arg("slug_index")
 AND pr.user_index = sqlc.arg("user_index");
 
+-- name: CountPhonesForUser :one
+SELECT COUNT(*)
+FROM phone p
+JOIN profile_phone pp ON p.uuid = pp.phone_uuid
+JOIN profile pr ON pp.profile_uuid = pr.uuid
+WHERE pr.user_index = sqlc.arg("user_index");
+
+-- name: CountPrimaryPhonesForUser :one
+SELECT COUNT(*)
+FROM phone p
+JOIN profile_phone pp ON p.uuid = pp.phone_uuid
+JOIN profile pr ON pp.profile_uuid = pr.uuid
+WHERE pr.user_index = sqlc.arg("user_index")
+AND p.is_primary = true;
 
 -- name: SavePhone :exec
 INSERT INTO phone (
@@ -26,6 +40,7 @@ INSERT INTO phone (
     extension,
     phone_type,
     is_current,
+    is_primary,
     updated_at,
     created_at
 ) VALUES (
@@ -37,6 +52,7 @@ INSERT INTO phone (
     sqlc.arg("extension"),
     sqlc.arg("phone_type"),
     sqlc.arg("is_current"),
+    sqlc.arg("is_primary"),
     sqlc.arg("updated_at"),
     sqlc.arg("created_at")
 );
@@ -49,6 +65,7 @@ SET
     extension = sqlc.arg("extension"),
     phone_type = sqlc.arg("phone_type"),
     is_current = sqlc.arg("is_current"),
+    is_primary = sqlc.arg("is_primary"),
     updated_at = sqlc.arg("updated_at")
 WHERE uuid = sqlc.arg("uuid");
 

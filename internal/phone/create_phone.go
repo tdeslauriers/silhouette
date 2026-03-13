@@ -98,9 +98,27 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 		PhoneNumber: sql.NullString{String: phoneNumber, Valid: true},
 		Extension:   sql.NullString{String: extension, Valid: extension != ""},
 		PhoneType:   sql.NullString{String: phoneType, Valid: true},
-		IsCurrent:   true, // a new phone record will default to current
+		IsCurrent:   req.GetIsCurrent(),
 		UpdatedAt:   now,
 		CreatedAt:   now,
+	}
+
+	// if request sets primary as true, validate there are no other primary phone records for the user
+	if req.GetIsPrimary() {
+		primaryCount, err := ps.phoneStore.CountPrimaryPhones(ctx, req.GetUsername())
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()))
+		}
+
+		if primaryCount > 0 {
+			log.Error(fmt.Sprintf("primary phone record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary phone record already exists for %s", req.GetUsername()))
+		}
+
+		record.IsPrimary = true
+	} else {
+		record.IsPrimary = false
 	}
 
 	// persist phone record

@@ -16,6 +16,12 @@ type PhoneStore interface {
 	// GetPhone retrieves a user's phone number from the database and decrypts the record.
 	GetUsersPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error)
 
+	// CountPhones retrieves a count of how many phone records exist for a given user.
+	CountPhones(ctx context.Context, username string) (int64, error)
+
+	// CountPrimaryPhones retrieves a count of how many primary phone records exist for a given user.
+	CountPrimaryPhones(ctx context.Context, username string) (int64, error)
+
 	// CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 	CreatePhone(ctx context.Context, phone *sqlc.Phone) error
 
@@ -79,6 +85,32 @@ func (ps *phoneStore) GetUsersPhone(ctx context.Context, slug, username string) 
 	return &phone, nil
 }
 
+// CountPhones retrieves a count of how many phone records exist for a given user.
+func (ps *phoneStore) CountPhones(ctx context.Context, username string) (int64, error) {
+
+	// get the blind index for the username
+	userIndex, err := ps.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return 0, err
+	}
+
+	// fetch count from the db
+	return ps.sql.CountPhonesForUser(ctx, userIndex)
+}
+
+// CountPrimaryPhones retrieves a count of how many primary phone records exist for a given user.
+func (ps *phoneStore) CountPrimaryPhones(ctx context.Context, username string) (int64, error) {
+
+	// get the blind index for the username
+	userIndex, err := ps.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return 0, err
+	}
+
+	// fetch count from the db
+	return ps.sql.CountPrimaryPhonesForUser(ctx, userIndex)
+}
+
 // CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 func (ps *phoneStore) CreatePhone(ctx context.Context, phone *sqlc.Phone) error {
 
@@ -121,6 +153,7 @@ func (ps *phoneStore) CreatePhone(ctx context.Context, phone *sqlc.Phone) error 
 		Extension:   phone.Extension,
 		PhoneType:   phone.PhoneType,
 		IsCurrent:   phone.IsCurrent,
+		IsPrimary:   phone.IsPrimary,
 		UpdatedAt:   phone.UpdatedAt,
 		CreatedAt:   phone.CreatedAt,
 	})
@@ -139,6 +172,7 @@ func (ps *phoneStore) UpdatePhone(ctx context.Context, phone *sqlc.Phone) error 
 		Extension:   phone.Extension,
 		PhoneType:   phone.PhoneType,
 		IsCurrent:   phone.IsCurrent,
+		IsPrimary:   phone.IsPrimary,
 		UpdatedAt:   phone.UpdatedAt,
 		Uuid:        phone.Uuid,
 	})

@@ -95,7 +95,8 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		phoneNumber == record.PhoneNumber.String &&
 		extension == record.Extension.String &&
 		phoneType == record.PhoneType.String &&
-		req.GetIsCurrent() == record.IsCurrent {
+		req.GetIsCurrent() == record.IsCurrent &&
+		req.GetIsPrimary() == record.IsPrimary {
 
 		log.Warn(fmt.Sprintf("no update necessary, no changed to phone record - slug: %s", req.GetPhoneSlug()))
 		return &api.Phone{
@@ -106,6 +107,7 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 			Extension:   proto.String(record.Extension.String),
 			PhoneType:   api.PhoneType(api.PhoneType_value[record.PhoneType.String]),
 			IsCurrent:   record.IsCurrent,
+			IsPrimary:   record.IsPrimary,
 			UpdatedAt:   timestamppb.New(record.UpdatedAt),
 			CreatedAt:   timestamppb.New(record.CreatedAt),
 		}, nil
@@ -122,7 +124,28 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		PhoneType:   sql.NullString{String: phoneType, Valid: phoneType != ""},
 		IsCurrent:   req.GetIsCurrent(),
 		UpdatedAt:   time.Now().UTC(),
+		// IsPrimary handled below since need to validate primary phone count if setting to true
 		// CreatedAt not needed for update
+	}
+
+	// if request sets primary as true, validate there are no other primary phone records for the user
+	if req.GetIsPrimary() {
+		primaryCount, err := ps.phoneStore.CountPrimaryPhones(ctx, req.GetUsername())
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()))
+		}
+
+		// if there is already a primary phone record and the current record is not primary, then return error since only allowed to have one primary phone record
+		if primaryCount > 0 && !record.IsPrimary {
+			log.Error(fmt.Sprintf("primary phone record already exists for %s - count %d", req.GetUsername(), primaryCount))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary phone record already exists for %s", req.GetUsername()))
+		}
+
+		updated.IsPrimary = true
+	} else {
+
+		updated.IsPrimary = record.IsPrimary
 	}
 
 	// update persistence layer
@@ -166,6 +189,13 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		updatedFields = append(updatedFields,
 			slog.Bool("is_current_previous", record.IsCurrent),
 			slog.Bool("is_current_updated", req.GetIsCurrent()),
+		)
+	}
+
+	if req.GetIsPrimary() != record.IsPrimary {
+		updatedFields = append(updatedFields,
+			slog.Bool("is_primary_previous", record.IsPrimary),
+			slog.Bool("is_primary_updated", req.GetIsPrimary()),
 		)
 	}
 

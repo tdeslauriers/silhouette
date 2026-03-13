@@ -19,6 +19,9 @@ type AddressStore interface {
 	// CountAddresses retrieves a count of how many address records exist for a given user.
 	CountAddresses(ctx context.Context, username string) (int64, error)
 
+	// CountPrimaryAddresses retrieves a count of how many primary address records exist for a given user.
+	CountPrimaryAddresses(ctx context.Context, username string) (int64, error)
+
 	// CreateAddress creates a new address record in the database, encrypting the fields before storage.
 	CreateAddress(ctx context.Context, address *sqlc.Address) error
 
@@ -92,8 +95,19 @@ func (s *addressStore) CountAddresses(ctx context.Context, username string) (int
 	}
 
 	// fetch count from the db
-	count, err := s.sql.CountAddressesForUser(ctx, userIndex)
-	return count, err
+	return s.sql.CountAddressesForUser(ctx, userIndex)
+}
+
+func (s *addressStore) CountPrimaryAddresses(ctx context.Context, username string) (int64, error) {
+
+	// get username index
+	userIndex, err := s.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return 0, err
+	}
+
+	// fetch count from the db
+	return s.sql.CountPrimaryAddressesForUser(ctx, userIndex)
 }
 
 // CreateAddress creates a new address record in the database, encrypting the fields before storage.
@@ -142,6 +156,7 @@ func (s *addressStore) CreateAddress(ctx context.Context, address *sqlc.Address)
 		Zip:            address.Zip,
 		Country:        address.Country,
 		IsCurrent:      address.IsCurrent,
+		IsPrimary:      address.IsPrimary,
 		UpdatedAt:      address.UpdatedAt,
 		CreatedAt:      address.CreatedAt,
 	})
@@ -164,6 +179,7 @@ func (s *addressStore) UpdateAddress(ctx context.Context, address *sqlc.Address)
 		Zip:            address.Zip,
 		Country:        address.Country,
 		IsCurrent:      address.IsCurrent,
+		IsPrimary:      address.IsPrimary,
 		UpdatedAt:      address.UpdatedAt,
 		Uuid:           address.Uuid,
 	})

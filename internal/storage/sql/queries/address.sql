@@ -22,6 +22,14 @@ JOIN profile_address pa ON a.uuid = pa.address_uuid
 JOIN profile p ON pa.profile_uuid = p.uuid
 WHERE p.user_index = sqlc.arg("user_index");
 
+-- name: CountPrimaryAddressesForUser :one
+SELECT COUNT(*)
+FROM address a
+JOIN profile_address pa ON a.uuid = pa.address_uuid
+JOIN profile p ON pa.profile_uuid = p.uuid
+WHERE p.user_index = sqlc.arg("user_index")
+AND a.is_primary = true;
+
 -- name: SaveAddress :exec
 INSERT INTO address (
     uuid, 
@@ -34,6 +42,7 @@ INSERT INTO address (
     zip, 
     country,
     is_current,
+    is_primary,
     updated_at,
     created_at
 ) VALUES (
@@ -47,6 +56,7 @@ INSERT INTO address (
     sqlc.arg("zip"), 
     sqlc.arg("country"),
     sqlc.arg("is_current"),
+    sqlc.arg("is_primary"),
     sqlc.arg("updated_at"),
     sqlc.arg("created_at")
 );
@@ -61,6 +71,7 @@ SET
     zip = sqlc.arg("zip"),
     country = sqlc.arg("country"),
     is_current = sqlc.arg("is_current"),
+    is_primary = sqlc.arg("is_primary"),
     updated_at = sqlc.arg("updated_at")
 WHERE uuid = sqlc.arg("uuid");
 

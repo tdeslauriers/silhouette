@@ -53,8 +53,9 @@ message Phone {
     optional string extension = 6;
     PhoneType phone_type = 7;
     bool is_current = 8;
-    google.protobuf.Timestamp updated_at = 9;
-    google.protobuf.Timestamp created_at = 10;
+    bool is_primary = 9;
+    google.protobuf.Timestamp updated_at = 10;
+    google.protobuf.Timestamp created_at = 11;
 }
 
 // CreatePhoneRequest is a model for the request message for 
@@ -65,6 +66,8 @@ message CreatePhoneRequest {
     string phone_number = 3;
     optional string extension = 4;
     PhoneType phone_type = 5;
+    bool is_current = 6;
+    bool is_primary = 7;
 }
 
 // UpdatePhoneRequest is a model for the request message for 
@@ -77,6 +80,7 @@ message UpdatePhoneRequest {
     optional string extension = 5;
     PhoneType phone_type = 6;
     bool is_current = 7;
+    bool is_primary = 8;
 }
 
 // DeletePhoneRequest is a model for the request message for 

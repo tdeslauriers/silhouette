@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS address (
     zip VARCHAR(128),
     country VARCHAR(128),
     is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS phone (
     extension VARCHAR(16) ,
     phone_type VARCHAR(32),
     is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL
 );

@@ -97,7 +97,8 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		stateProvince == record.State.String &&
 		postalCode == record.Zip.String &&
 		country == record.Country.String &&
-		req.GetIsCurrent() == record.IsCurrent {
+		req.GetIsCurrent() == record.IsCurrent &&
+		req.GetIsPrimary() == record.IsPrimary {
 
 		log.Warn(fmt.Sprintf("no update necessary, no changes to address record - slug: %s", req.GetSlug()))
 		return &api.Address{
@@ -110,6 +111,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 			PostalCode:      record.Zip.String,
 			Country:         record.Country.String,
 			IsCurrent:       record.IsCurrent,
+			IsPrimary:       record.IsPrimary,
 			CreatedAt:       timestamppb.New(record.CreatedAt),
 			UpdatedAt:       timestamppb.New(record.UpdatedAt),
 		}, nil
@@ -129,6 +131,25 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		IsCurrent:    req.GetIsCurrent(),
 		UpdatedAt:    time.Now().UTC(),
 		// CreatedAt not needed for update
+	}
+
+	// if setting primary to true, validate there are no other primary address records for the user
+	if req.GetIsPrimary() && !record.IsPrimary {
+
+		primaryCount, err := as.addressStore.CountPrimaryAddresses(ctx, req.GetUsername())
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()))
+		}
+
+		if primaryCount > 0 {
+			log.Error(fmt.Sprintf("primary address record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", req.GetUsername()))
+		}
+
+		updated.IsPrimary = true
+	} else {
+		updated.IsPrimary = record.IsPrimary
 	}
 
 	// update persistence layer
@@ -186,6 +207,13 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		updatedFields = append(updatedFields,
 			slog.Bool("is_current_previous", record.IsCurrent),
 			slog.Bool("is_current_updated", req.GetIsCurrent()),
+		)
+	}
+
+	if req.GetIsPrimary() != record.IsPrimary {
+		updatedFields = append(updatedFields,
+			slog.Bool("is_primary_previous", record.IsPrimary),
+			slog.Bool("is_primary_updated", req.GetIsPrimary()),
 		)
 	}
 

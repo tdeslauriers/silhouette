@@ -119,6 +119,24 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		CreatedAt:    now,
 	}
 
+	// if request sets primary as true, validate there are no other primary address records for the user
+	if req.GetIsPrimary() {
+		primaryCount, err := as.addressStore.CountPrimaryAddresses(ctx, req.GetUsername())
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()))
+		}
+
+		if primaryCount > 0 {
+			log.Error(fmt.Sprintf("primary address record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", req.GetUsername()))
+		}
+
+		record.IsPrimary = true
+	} else {
+		record.IsPrimary = false
+	}
+
 	// persist address record
 	if err := as.addressStore.CreateAddress(ctx, record); err != nil {
 		log.Error(fmt.Sprintf("failed to create address record for %s", req.GetUsername()), "err", err.Error())
