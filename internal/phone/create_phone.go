@@ -104,21 +104,30 @@ func (ps *phoneServer) CreatePhone(ctx context.Context, req *api.CreatePhoneRequ
 	}
 
 	// if request sets primary as true, validate there are no other primary phone records for the user
-	if req.GetIsPrimary() {
-		primaryCount, err := ps.phoneStore.CountPrimaryPhones(ctx, req.GetUsername())
+	switch {
+	case !record.IsCurrent && !req.GetIsPrimary():
+		// do nothing - this is valid
+		record.IsPrimary = false
+	case !record.IsCurrent && req.GetIsPrimary():
+		// cannot create a non current record as primary - this is invalid
+		log.Error(fmt.Sprintf("invalid phone record for user %s - non-current record cannot be primary during creation", req.GetUsername()))
+		return nil, status.Error(codes.InvalidArgument, "invalid phone record - non-current record cannot be primary")
+	case record.IsCurrent && req.GetIsPrimary():
+		// user should not have current primary phone records
+
+		// get count of how many primary phone records exist for the user
+		count, err := ps.phoneStore.CountPrimaryPhones(ctx, req.GetUsername())
 		if err != nil {
 			log.Error(fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()), "err", err.Error())
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary phone count for %s", req.GetUsername()))
 		}
 
-		if primaryCount > 0 {
-			log.Error(fmt.Sprintf("primary phone record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary phone record already exists for %s", req.GetUsername()))
+		if count > 0 {
+			log.Error(fmt.Sprintf("primary phone record already exists for %s - cannot create another primary record", req.GetUsername()))
+			return nil, status.Error(codes.InvalidArgument, "primary phone record already exists - cannot create another primary record")
 		}
 
 		record.IsPrimary = true
-	} else {
-		record.IsPrimary = false
 	}
 
 	// persist phone record

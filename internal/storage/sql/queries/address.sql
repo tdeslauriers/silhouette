@@ -7,13 +7,20 @@ SELECT *
 FROM address
 WHERE slug_index = sqlc.arg("slug_index");
 
--- name: FindAddressByUser :one
+-- name: FindAddressBySlugAndUser :one
 SELECT a.*
 FROM address a
 JOIN profile_address pa ON a.uuid = pa.address_uuid
 JOIN profile p ON pa.profile_uuid = p.uuid
 WHERE a.slug_index = sqlc.arg("slug_index")
 AND p.user_index = sqlc.arg("user_index");
+
+-- name: FindAddressesByUser :many
+SELECT a.*
+FROM address a
+JOIN profile_address pa ON a.uuid = pa.address_uuid
+JOIN profile p ON pa.profile_uuid = p.uuid
+WHERE p.user_index = sqlc.arg("user_index");
 
 -- name: CountAddressesForUser :one
 SELECT COUNT(*)
@@ -24,6 +31,14 @@ WHERE p.user_index = sqlc.arg("user_index");
 
 -- name: CountPrimaryAddressesForUser :one
 SELECT COUNT(*)
+FROM address a
+JOIN profile_address pa ON a.uuid = pa.address_uuid
+JOIN profile p ON pa.profile_uuid = p.uuid
+WHERE p.user_index = sqlc.arg("user_index")
+AND a.is_primary = true;
+
+-- name: FindPrimaryAddresses :many
+SELECT a.uuid, a.slug, a.is_current, a.is_primary
 FROM address a
 JOIN profile_address pa ON a.uuid = pa.address_uuid
 JOIN profile p ON pa.profile_uuid = p.uuid

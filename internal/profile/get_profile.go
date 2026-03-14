@@ -81,6 +81,7 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 			StateProvince:   address.State.String,
 			PostalCode:      address.Zip.String,
 			IsCurrent:       address.IsCurrent,
+			IsPrimary:       address.IsPrimary,
 			Country:         address.Country.String,
 			UpdatedAt:       timestamppb.New(address.UpdatedAt),
 			CreatedAt:       timestamppb.New(address.CreatedAt),
@@ -103,6 +104,7 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 			Extension:   proto.String(phone.Extension.String),
 			PhoneType:   api.PhoneType(api.PhoneType_value[phone.PhoneType.String]),
 			IsCurrent:   phone.IsCurrent,
+			IsPrimary:   phone.IsPrimary,
 			UpdatedAt:   timestamppb.New(phone.UpdatedAt),
 			CreatedAt:   timestamppb.New(phone.CreatedAt),
 		})

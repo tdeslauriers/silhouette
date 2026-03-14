@@ -42,8 +42,11 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		With("actor", authCtx.UserClaims.Subject).
 		With("requesting_service", authCtx.SvcClaims.Subject)
 
+	// prepare req fields for use
+	username := strings.TrimSpace(req.GetUsername())
+
 	// authorize the request
-	if err := auth.AuthorizeRequest(authCtx, req.GetUsername()); err != nil {
+	if err := auth.AuthorizeRequest(authCtx, username); err != nil {
 		log.Error("failed to authorize request", "err", err.Error())
 		return nil, status.Error(codes.PermissionDenied, "access denied")
 	}
@@ -57,36 +60,36 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 	// get the porfile record to validate user exists in the service
 	// it should never happen that a valid user would not have a profile record
 	// need the profile uuid for the xref record
-	profile, err := as.profileStore.GetProfile(ctx, req.GetUsername())
+	profile, err := as.profileStore.GetProfile(ctx, username)
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to lookup profile for %s", req.GetUsername()), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to look up profile for %s", req.GetUsername()))
+		log.Error(fmt.Sprintf("failed to lookup profile for %s", username), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to look up profile for %s", username))
 	}
 
 	// check how many address records currently exist for the user
 	// only allowed to have 3 address records, including non-current records
-	addressCount, err := as.addressStore.CountAddresses(ctx, req.GetUsername())
+	addressCount, err := as.addressStore.CountAddresses(ctx, username)
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get address count for %s", req.GetUsername()), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address count for %s", req.GetUsername()))
+		log.Error(fmt.Sprintf("failed to get address count for %s", username), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address count for %s", username))
 	}
 
 	if addressCount >= 3 {
-		log.Error(fmt.Sprintf("address record limit reached for %s - count %d", req.GetUsername(), addressCount))
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("address record limit reached for %s", req.GetUsername()))
+		log.Error(fmt.Sprintf("address record limit reached for %s - count %d", username, addressCount))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("address record limit reached for %s", username))
 	}
 
 	// create address record
 	id, err := uuid.NewRandom()
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to generate uuid for %s's new address record", req.GetUsername()), "err", err.Error())
+		log.Error(fmt.Sprintf("failed to generate uuid for %s's new address record", username), "err", err.Error())
 		return nil, status.Error(codes.Internal, "failed to generate uuid for new address record")
 	}
 
 	// create slug
 	slug, err := uuid.NewRandom()
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to generate slug for %s's new address record", req.GetUsername()), "err", err.Error())
+		log.Error(fmt.Sprintf("failed to generate slug for %s's new address record", username), "err", err.Error())
 		return nil, status.Error(codes.Internal, "failed to generate slug for new address record")
 	}
 
@@ -119,39 +122,55 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		CreatedAt:    now,
 	}
 
-	// if request sets primary as true, validate there are no other primary address records for the user
-	if req.GetIsPrimary() {
-		primaryCount, err := as.addressStore.CountPrimaryAddresses(ctx, req.GetUsername())
+	// need to check if the new record is set to primary and
+	// if so, make sure there are no other primary records
+	switch {
+	case !record.IsCurrent && !req.GetIsPrimary():
+		// if the new record is non-current and non-primary, do nothing - this is valid
+		record.IsPrimary = false
+	case !record.IsCurrent && req.GetIsPrimary():
+		// cannot create a non current record as primary - this is invalid
+		log.Error(fmt.Sprintf("invalid address record for %s - non-current record cannot be primary", username))
+		return nil, status.Error(codes.InvalidArgument, "invalid address record - non-current record cannot be primary")
+	case record.IsCurrent && req.GetIsPrimary():
+		// user should not have current primary address records
+
+		// get count of how many primary address records exist for the user
+		count, err := as.addressStore.CountPrimaryAddresses(ctx, username)
 		if err != nil {
-			log.Error(fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()))
+			log.Error(fmt.Sprintf("failed to get primary address count for %s", username), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for %s", username))
 		}
 
-		if primaryCount > 0 {
-			log.Error(fmt.Sprintf("primary address record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", req.GetUsername()))
+		if count > 0 {
+			log.Error(fmt.Sprintf("primary address record already exists for %s - cannot create another primary record", username))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s - cannot create another primary record", username))
 		}
 
 		record.IsPrimary = true
-	} else {
-		record.IsPrimary = false
+	}
+
+	// sanity check: ensure final state does not include primary == true and is_current == false - this is invalid
+	if record.IsPrimary && !record.IsCurrent {
+		log.Error(fmt.Sprintf("invalid address record for %s - non-current record cannot be primary", username))
+		return nil, status.Error(codes.InvalidArgument, "invalid address record - non-current record cannot be primary")
 	}
 
 	// persist address record
 	if err := as.addressStore.CreateAddress(ctx, record); err != nil {
-		log.Error(fmt.Sprintf("failed to create address record for %s", req.GetUsername()), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address record for %s", req.GetUsername()))
+		log.Error(fmt.Sprintf("failed to create address record for %s", username), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address record for %s", username))
 	}
 
-	log.Info(fmt.Sprintf("successfuly persisted address record - slug %s for %s", slug, req.GetUsername()))
+	log.Info(fmt.Sprintf("successfuly persisted address record - slug %s for %s", slug, username))
 
 	// persist xref record
 	if err := as.xrefStore.CreateProfileAddressXref(ctx, profile.Uuid, record.Uuid); err != nil {
-		log.Error(fmt.Sprintf("failed to create address xref record for %s", req.GetUsername()), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address xref record for %s", req.GetUsername()))
+		log.Error(fmt.Sprintf("failed to create address xref record for %s", username), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address xref record for %s", username))
 	}
 
-	log.Info(fmt.Sprintf("succcessfully persisted profile-address record for %s and address - slug %s", req.GetUsername(), slug))
+	log.Info(fmt.Sprintf("succcessfully persisted profile-address record for %s and address - slug %s", username, slug))
 
 	// return the created address record
 	// note: cant user record cuz model is encrypted when it is saved.
@@ -165,6 +184,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		PostalCode:      postalCode,
 		Country:         country,
 		IsCurrent:       record.IsCurrent,
+		IsPrimary:       record.IsPrimary,
 		UpdatedAt:       timestamppb.New(record.UpdatedAt),
 		CreatedAt:       timestamppb.New(record.CreatedAt),
 	}, nil

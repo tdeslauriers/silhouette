@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/tdeslauriers/carapace/pkg/data"
@@ -14,13 +17,16 @@ import (
 type PhoneStore interface {
 
 	// GetPhone retrieves a user's phone number from the database and decrypts the record.
-	GetUsersPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error)
+	GetPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error)
 
 	// CountPhones retrieves a count of how many phone records exist for a given user.
 	CountPhones(ctx context.Context, username string) (int64, error)
 
 	// CountPrimaryPhones retrieves a count of how many primary phone records exist for a given user.
 	CountPrimaryPhones(ctx context.Context, username string) (int64, error)
+
+	// GetPhonesByUser retrieves all phone records for a given user, and decrypts the records.
+	GetPhonesByUser(ctx context.Context, username string) ([]*sqlc.Phone, error)
 
 	// CreatePhone creates a new phone record in the database, encrypting the fields before storage.
 	CreatePhone(ctx context.Context, phone *sqlc.Phone) error
@@ -54,7 +60,7 @@ type phoneStore struct {
 }
 
 // GetPhone retrieves a user's phone number from the database and decrypts the record.
-func (ps *phoneStore) GetUsersPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error) {
+func (ps *phoneStore) GetPhone(ctx context.Context, slug, username string) (*sqlc.Phone, error) {
 
 	// get the blind slugIndex for the phone slug
 	slugIndex, err := ps.indexer.ObtainBlindIndex(slug)
@@ -109,6 +115,83 @@ func (ps *phoneStore) CountPrimaryPhones(ctx context.Context, username string) (
 
 	// fetch count from the db
 	return ps.sql.CountPrimaryPhonesForUser(ctx, userIndex)
+}
+
+// GetPhonesByUser retrieves all phone records for a given user, and decrypts the records.
+func (ps *phoneStore) GetPhonesByUser(ctx context.Context, username string) ([]*sqlc.Phone, error) {
+
+	// get the blind index for the username
+	userIndex, err := ps.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch the phone records for the given user
+	records, err := ps.sql.FindPhonesByUser(ctx, userIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	var phones []*sqlc.Phone
+
+	// return empty if empty result set
+	if len(records) < 1 {
+		return phones, nil
+	}
+
+	// if one, omit concurrency loop and just decrypt and return
+	if len(records) == 1 {
+
+		phone := records[0]
+
+		if err := ps.cryptor.DecryptPhone(&phone); err != nil {
+			return nil, err
+		}
+
+		return []*sqlc.Phone{&phone}, nil
+	}
+
+	// setup concurrency loop to decrypt phone records in parallel if more than one record
+	var (
+		wg      sync.WaitGroup
+		phoneCh = make(chan *sqlc.Phone, len(records))
+		errCh   = make(chan error, len(records))
+	)
+
+	for _, r := range records {
+		wg.Add(1)
+
+		go func(phone sqlc.Phone) {
+			defer wg.Done()
+
+			if err := ps.cryptor.DecryptPhone(&phone); err != nil {
+				errCh <- err
+				return
+			}
+
+			phoneCh <- &phone
+		}(r)
+	}
+
+	wg.Wait()
+	close(phoneCh)
+	close(errCh)
+
+	// check if any errors were returned during decryption
+	if len(errCh) > 0 {
+		var errs []error
+		for err := range errCh {
+			errs = append(errs, err)
+		}
+		return nil, fmt.Errorf("encountered errors during decryption: %v", errors.Join(errs...))
+	}
+
+	// compile decrypted records into slice
+	for p := range phoneCh {
+		phones = append(phones, p)
+	}
+
+	return phones, nil
 }
 
 // CreatePhone creates a new phone record in the database, encrypting the fields before storage.

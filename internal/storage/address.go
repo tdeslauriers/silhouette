@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/tdeslauriers/carapace/pkg/data"
@@ -15,6 +18,9 @@ type AddressStore interface {
 
 	// GetAddress retrieves a user's address from the database and decrypts the record.
 	GetAddress(ctx context.Context, slug, username string) (*sqlc.Address, error)
+
+	// GetAddressesByUser retrieves all address records for a given user, and decrypts the records.
+	GetAddressesByUser(ctx context.Context, username string) ([]*sqlc.Address, error)
 
 	// CountAddresses retrieves a count of how many address records exist for a given user.
 	CountAddresses(ctx context.Context, username string) (int64, error)
@@ -69,7 +75,7 @@ func (s *addressStore) GetAddress(ctx context.Context, slug, username string) (*
 	}
 
 	// fetch record from the db
-	address, err := s.sql.FindAddressByUser(ctx, sqlc.FindAddressByUserParams{
+	address, err := s.sql.FindAddressBySlugAndUser(ctx, sqlc.FindAddressBySlugAndUserParams{
 		SlugIndex: slugIndex,
 		UserIndex: userIndex,
 	})
@@ -98,6 +104,7 @@ func (s *addressStore) CountAddresses(ctx context.Context, username string) (int
 	return s.sql.CountAddressesForUser(ctx, userIndex)
 }
 
+// CountPrimaryAddresses retrieves a count of how many primary address records exist for a given user.
 func (s *addressStore) CountPrimaryAddresses(ctx context.Context, username string) (int64, error) {
 
 	// get username index
@@ -108,6 +115,83 @@ func (s *addressStore) CountPrimaryAddresses(ctx context.Context, username strin
 
 	// fetch count from the db
 	return s.sql.CountPrimaryAddressesForUser(ctx, userIndex)
+}
+
+// GetAddressesByUser retrieves all address records for a given user, and decrypts the records
+func (s *addressStore) GetAddressesByUser(ctx context.Context, username string) ([]*sqlc.Address, error) {
+
+	// get username index
+	userIndex, err := s.indexer.ObtainBlindIndex(username)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch records from the db
+	records, err := s.sql.FindAddressesByUser(ctx, userIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	// handle case where no records found
+	addresses := make([]*sqlc.Address, 0, len(records))
+	if len(records) < 1 {
+		return addresses, nil
+	}
+
+	// handle single record -> concurrency unnecessary
+	if len(records) == 1 {
+
+		// decrypt the address record's encrypted fields
+		if err := s.cryptor.DecryptAddress(&records[0]); err != nil {
+			return nil, err
+		}
+
+		return []*sqlc.Address{&records[0]}, nil
+	}
+
+	// handle multiple records -> decrypt concurrently
+	var (
+		wg          sync.WaitGroup
+		addressesCh = make(chan *sqlc.Address, len(records))
+		errCh       = make(chan error, len(records))
+	)
+	for _, record := range records {
+
+		wg.Add(1)
+
+		go func(record sqlc.Address) {
+			defer wg.Done()
+
+			// decrypt the address record's encrypted fields
+			if err := s.cryptor.DecryptAddress(&record); err != nil {
+				errCh <- err
+				return
+			}
+
+			addressesCh <- &record
+		}(record)
+	}
+
+	// wait for all decryption goroutines to finish
+	wg.Wait()
+	close(addressesCh)
+	close(errCh)
+
+	// check for errs
+	if len(errCh) > 0 {
+		var errs []error
+		for err := range errCh {
+			errs = append(errs, err)
+		}
+		return nil, fmt.Errorf("failed to decrypt one or more address records: %v", errors.Join(errs...))
+	}
+
+	// build slice of decrypted records
+	for address := range addressesCh {
+		addresses = append(addresses, address)
+	}
+
+	return addresses, nil
 }
 
 // CreateAddress creates a new address record in the database, encrypting the fields before storage.

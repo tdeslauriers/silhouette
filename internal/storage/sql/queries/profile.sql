@@ -20,6 +20,7 @@ SELECT
     a.zip,
     a.country AS address_country,
     a.is_current AS address_is_current,
+    a.is_primary AS address_is_primary,
     a.updated_at AS address_updated_at,
     a.created_at AS address_created_at,
     ph.uuid AS phone_uuid,
@@ -29,6 +30,7 @@ SELECT
     ph.extension,
     ph.phone_type,
     ph.is_current AS phone_is_current,
+    ph.is_primary AS phone_is_primary,
     ph.updated_at AS phone_updated_at,
     ph.created_at AS phone_created_at
 FROM profile p

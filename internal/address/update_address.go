@@ -45,8 +45,12 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		With("actor", authCtx.UserClaims.Subject).
 		With("requesting_service", authCtx.SvcClaims.Subject)
 
+	// prepare username and slug parameter fields
+	username := strings.TrimSpace(req.GetUsername())
+	slug := strings.TrimSpace(req.GetSlug())
+
 	// authorize the request
-	if err := auth.AuthorizeRequest(authCtx, req.GetUsername()); err != nil {
+	if err := auth.AuthorizeRequest(authCtx, username); err != nil {
 		log.Error("failed to authorize request", "err", err.Error())
 		return nil, status.Error(codes.PermissionDenied, "access denied")
 	}
@@ -58,23 +62,23 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 	}
 
 	// validate slug since not accounted for in cmd validation
-	if !validate.IsValidUuid(strings.TrimSpace(req.GetSlug())) {
+	if !validate.IsValidUuid(slug) {
 		log.Error("invalid address slug", "err", "address slug must be a valid UUID")
 		return nil, status.Error(codes.InvalidArgument, "address slug must be a valid UUID")
 	}
 
 	// get the existing record record by slug and username to
 	// ensure the record exists and belongs to the requested user
-	record, err := as.addressStore.GetAddress(ctx, req.GetSlug(), req.GetUsername())
+	record, err := as.addressStore.GetAddress(ctx, slug, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Error(fmt.Sprintf("address slug %s record not found for user %s", req.GetSlug(), req.GetUsername()),
+			log.Error(fmt.Sprintf("address slug %s record not found for user %s", slug, username),
 				"err", err.Error(),
 			)
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("address record not found for slug: %s", req.GetSlug()))
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("address record not found for slug: %s", slug))
 		} else {
-			log.Error(fmt.Sprintf("failed to get address record for slug %s", req.GetSlug()), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address record for slug: %s", req.GetSlug()))
+			log.Error(fmt.Sprintf("failed to get address record for slug %s", slug), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address record for slug: %s", slug))
 		}
 	}
 
@@ -100,7 +104,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		req.GetIsCurrent() == record.IsCurrent &&
 		req.GetIsPrimary() == record.IsPrimary {
 
-		log.Warn(fmt.Sprintf("no update necessary, no changes to address record - slug: %s", req.GetSlug()))
+		log.Warn(fmt.Sprintf("no update necessary, no changes to address record - slug: %s", slug))
 		return &api.Address{
 			Uuid:            record.Uuid,
 			Slug:            record.Slug,
@@ -128,34 +132,72 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		State:        sql.NullString{String: stateProvince, Valid: stateProvince != ""},
 		Zip:          sql.NullString{String: postalCode, Valid: postalCode != ""},
 		Country:      sql.NullString{String: country, Valid: country != ""},
-		IsCurrent:    req.GetIsCurrent(),
+		IsCurrent:    req.GetIsCurrent(), // final state is checked below is_primary validation
 		UpdatedAt:    time.Now().UTC(),
 		// CreatedAt not needed for update
 	}
 
-	// if setting primary to true, validate there are no other primary address records for the user
-	if req.GetIsPrimary() && !record.IsPrimary {
-
-		primaryCount, err := as.addressStore.CountPrimaryAddresses(ctx, req.GetUsername())
+	// if request sets primary as true and record is not currently primary,
+	// validate there are no other primary address records for the user
+	switch {
+	case req.GetIsPrimary() && record.IsPrimary:
+		// do nothing - record is already primary and remains primary
+		updated.IsPrimary = true
+	case !req.GetIsPrimary() && !record.IsPrimary:
+		// do nothing - record is not primary and remains non-primary
+		updated.IsPrimary = false
+	case !req.GetIsPrimary() && record.IsPrimary:
+		// if primary is being removed, set to false, this
+		// is allowed without validation since user can have multiple non-primary records
+		updated.IsPrimary = false
+	case req.GetIsPrimary() && !record.IsPrimary:
+		// if primary is being added, validate there are no other primary records for the user
+		addresses, err := as.addressStore.GetAddressesByUser(ctx, username)
 		if err != nil {
-			log.Error(fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for %s", req.GetUsername()))
+			log.Error(fmt.Sprintf("failed to get address records for user %s", username), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address records for user: %s", username))
 		}
 
-		if primaryCount > 0 {
-			log.Error(fmt.Sprintf("primary address record already exists for %s - primary count: %d", req.GetUsername(), primaryCount))
-			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", req.GetUsername()))
+		// error of no addresses found should not be possible since the record being updated belongs to the user, but handle just in case
+		if len(addresses) < 1 {
+			log.Error(fmt.Sprintf("no address records found for user %s during primary address update validation", username))
+			return nil, status.Error(codes.Internal, fmt.Sprintf("no address records found for user %s during primary address update validation", username))
+		}
+
+		// if there is only one address record then it can be made primary without a loop check
+		// Still: sanity check to validate the slugs match before updating primary status
+		if len(addresses) == 1 {
+			if addresses[0].Slug != slug {
+				log.Error(fmt.Sprintf("data integrity issue detected for user %s - address slug %s not found in user's address records during primary address update", username, slug))
+				return nil, status.Error(codes.Internal, "data integrity issue detected during primary address update")
+			}
+			updated.IsPrimary = true
+			break
+		}
+
+		// loop thru addresses to validate no other primary records exist for the user,
+		// excluding the current record being updated
+		for _, address := range addresses {
+			if address.IsPrimary && address.Slug != slug {
+				log.Error(fmt.Sprintf("primary address record already exists for %s - slug: %s", username, address.Slug))
+				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", username))
+			}
 		}
 
 		updated.IsPrimary = true
-	} else {
-		updated.IsPrimary = record.IsPrimary
+	}
+
+	// validate the final post-update state since a record can only be non-current
+	// when it is also non-primary
+	if updated.IsPrimary && !updated.IsCurrent {
+		log.Error(fmt.Sprintf("invalid update request for slug %s - primary address records must be current", slug))
+		return nil, status.Error(codes.InvalidArgument, "primary address records must be current")
 	}
 
 	// update persistence layer
 	if err := as.addressStore.UpdateAddress(ctx, updated); err != nil {
-		log.Error(fmt.Sprintf("failed to update address record for slug %s", req.GetSlug()), "err", err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update address record - slug: %s", req.GetSlug()))
+		log.Error(fmt.Sprintf("failed to update address record for slug %s", slug), "err", err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update address record - slug: %s", slug))
 	}
 
 	// build audit log fields
@@ -218,7 +260,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 	}
 
 	// log the update
-	log.Info(fmt.Sprintf("successfully updated address record - slug: %s", req.GetSlug()), updatedFields...)
+	log.Info(fmt.Sprintf("successfully updated address record - slug: %s", slug), updatedFields...)
 
 	return &api.Address{
 		Uuid:            record.Uuid,
@@ -230,6 +272,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		PostalCode:      postalCode,
 		Country:         country,
 		IsCurrent:       updated.IsCurrent,
+		IsPrimary:       updated.IsPrimary,
 		CreatedAt:       timestamppb.New(record.CreatedAt),
 		UpdatedAt:       timestamppb.New(updated.UpdatedAt),
 	}, nil

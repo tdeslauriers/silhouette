@@ -30,6 +30,13 @@ JOIN profile pr ON pp.profile_uuid = pr.uuid
 WHERE pr.user_index = sqlc.arg("user_index")
 AND p.is_primary = true;
 
+-- name: FindPhonesByUser :many
+SELECT p.*
+FROM phone p
+JOIN profile_phone pp ON p.uuid = pp.phone_uuid
+JOIN profile pr ON pp.profile_uuid = pr.uuid
+WHERE pr.user_index = sqlc.arg("user_index");
+
 -- name: SavePhone :exec
 INSERT INTO phone (
     uuid,

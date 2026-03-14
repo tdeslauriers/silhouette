@@ -175,6 +175,7 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 				Zip:          record.Zip,
 				Country:      record.AddressCountry,
 				IsCurrent:    record.AddressIsCurrent.Bool,
+				IsPrimary:    record.AddressIsPrimary.Bool,
 				UpdatedAt:    record.AddressUpdatedAt.Time,
 				CreatedAt:    record.AddressCreatedAt.Time,
 			}
@@ -190,6 +191,7 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 				Extension:   record.Extension,
 				PhoneType:   record.PhoneType,
 				IsCurrent:   record.PhoneIsCurrent.Bool,
+				IsPrimary:   record.PhoneIsPrimary.Bool,
 				UpdatedAt:   record.PhoneUpdatedAt.Time,
 				CreatedAt:   record.PhoneCreatedAt.Time,
 			}

@@ -55,7 +55,7 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 
 	// get the phone records by the username
 	// need to validate the slug exists and is associated with the given username
-	phone, err := ps.phoneStore.GetUsersPhone(
+	phone, err := ps.phoneStore.GetPhone(
 		ctx,
 		strings.TrimSpace(req.GetPhoneSlug()),
 		strings.TrimSpace(req.GetUsername()),
