@@ -237,7 +237,7 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 	}
 
 	// log successful update
-	log.With(updatedFields...)
+	log = log.With(updatedFields...)
 	log.Info(fmt.Sprintf("successfully updated phone record - slug: %s", slug))
 
 	return &api.Phone{
