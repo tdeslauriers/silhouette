@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS phone (
     uuid CHAR(36) PRIMARY KEY,
     slug VARCHAR(128) NOT NULL,
     slug_index VARCHAR(128) NOT NULL,
-    country_code VARCHAR(16) ,   -- e.g., "+1", "+44"
-    phone_number VARCHAR(32),   -- the actual number
-    extension VARCHAR(16) ,
-    phone_type VARCHAR(32),
+    country_code VARCHAR(64) ,   -- e.g., "+1", "+44"
+    phone_number VARCHAR(64),   -- the actual number
+    extension VARCHAR(64),
+    phone_type VARCHAR(64),
     is_current BOOLEAN NOT NULL DEFAULT TRUE,
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP NOT NULL,

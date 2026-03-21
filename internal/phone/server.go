@@ -126,11 +126,6 @@ func ValidateCmd(cmd PhoneUpsert) error {
 		return errors.New("invalid phone type")
 	}
 
-	// this can happen either if the field isnt set or there was a failure to convert it to a valid enum value
-	if cmd.GetPhoneType() == api.PhoneType_PHONE_TYPE_UNSPECIFIED {
-		return errors.New("phone type may not be 'unspecified'")
-	}
-
 	return nil
 }
 
@@ -154,14 +149,14 @@ func ConvertPhoneType(pt string) api.PhoneType {
 	return api.PhoneType(phEnum)
 }
 
-func convertToSqlString(pt api.PhoneType) string {
+func ConvertToSqlString(pt api.PhoneType) string {
 
-	tp := pt.String()
+	phonetype := pt.String()
 
 	// if has prefix, remove
-	if after, ok := strings.CutPrefix(tp, "PHONE_TYPE_"); ok {
-		tp = after
+	if after, ok := strings.CutPrefix(phonetype, "PHONE_TYPE_"); ok {
+		phonetype = after
 	}
 
-	return strings.ToLower(tp)
+	return phonetype
 }
