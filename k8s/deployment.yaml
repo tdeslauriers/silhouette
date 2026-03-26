@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silhouette
+  namespace: world
+  labels:
+    app: silhouette
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: silhouette
+  template:
+    metadata:
+      labels:
+        app: silhouette
+    spec:
+      containers:
+        - name: silhouette
+          image: tdeslauriers/silhouette:latest
+          ports:
+            - containerPort: 8443
+          env:
+            - name: SILHOUETTE_SERVICE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-silhouette-service
+                  key: silhouette-client-id
+            - name: SILHOUETTE_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-silhouette-service
+                  key: silhouette-port
+            - name: SILHOUETTE_CA_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: secret-server-ca-prod
+                  key: server-ca-cert
+            - name: SILHOUETTE_SERVER_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-server-cert
+                  key: server-cert
+            - name: SILHOUETTE_SERVER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-server-cert
+                  key: server-key
+            - name: SILHOUETTE_DB_CA_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: secret-db-ca-prod
+                  key: db-ca-cert
+            - name: SILHOUETTE_DB_CLIENT_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-db-client-cert
+                  key: client-cert
+            - name: SILHOUETTE_DB_CLIENT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-db-client-cert
+                  key: client-key
+            - name: SILHOUETTE_DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-silhouette-db
+                  key: db-url
+            - name: SILHOUETTE_DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-silhouette-db
+                  key: db-name
+            - name: SILHOUETTE_DATABASE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: cm-silhouette-db
+                  key: db-username
+            - name: SILHOUETTE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-db
+                  key: db-password
+            - name: SILHOUETTE_DATABASE_HMAC_INDEX_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-db
+                  key: hmac-index-secret
+            - name: SILHOUETTE_FIELD_LEVEL_AES_GCM_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: secret-silhouette-db
+                  key: aes-gcm-secret
+            - name: SILHOUETTE_S2S_JWT_VERIFYING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secret-s2s-jwt-signing
+                  key: jwt-verifying-key
+            - name: SILHOUETTE_USER_JWT_VERIFYING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secret-identity-jwt-signing
+                  key: jwt-verifying-key
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
+            requests:
+              cpu: "250m"
+              memory: "64Mi"

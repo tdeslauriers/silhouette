@@ -10,6 +10,7 @@ export  SILHOUETTE_SERVER_KEY="$(op document get "silhouette_service_server_dev_
 export  SILHOUETTE_DB_CA_CERT="$(op document get "db_ca_dev_cert" --vault world_site | base64 -w 0)" 
 export  SILHOUETTE_DB_CLIENT_CERT="$(op document get "silhouette_db_client_dev_cert" --vault world_site | base64 -w 0)" 
 export  SILHOUETTE_DB_CLIENT_KEY="$(op document get "silhouette_db_client_dev_key" --vault world_site | base64 -w 0)" 
+
 export  SILHOUETTE_DATABASE_URL="$(op read "op://world_site/silhouette_db_dev/server"):$(op read "op://world_site/silhouette_db_dev/port")" 
 export  SILHOUETTE_DATABASE_NAME="$(op read "op://world_site/silhouette_db_dev/database")" 
 export  SILHOUETTE_DATABASE_USERNAME="$(op read "op://world_site/silhouette_db_dev/username")" 
