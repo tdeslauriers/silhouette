@@ -5,9 +5,9 @@ NAMESPACE="world"
 CONFIG_MAP_NAME="cm-silhouette-service"
 
 # get url, port, and client id from 1password
-SILHOUETTE_URL=$(op read "op://world_site/pixie_service_container_prod/url")
-SILHOUETTE_PORT=$(op read "op://world_site/pixie_service_container_prod/port")
-SILHOUETTE_CLIENT_ID=$(op read "op://world_site/pixie_service_container_prod/client_id")
+SILHOUETTE_URL=$(op read "op://world_site/silhouette_service_container_prod/url")
+SILHOUETTE_PORT=$(op read "op://world_site/silhouette_service_container_prod/port")
+SILHOUETTE_CLIENT_ID=$(op read "op://world_site/silhouette_service_container_prod/client_id")
 
 # validate values are not empty
 if [[ -z "$SILHOUETTE_URL" || -z "$SILHOUETTE_PORT" || -z "$SILHOUETTE_CLIENT_ID" ]]; then
