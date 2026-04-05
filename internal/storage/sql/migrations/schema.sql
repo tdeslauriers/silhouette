@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS profile_address (
     profile_uuid CHAR(36) NOT NULL,
     address_uuid CHAR(36) NOT NULL,
     created_at TIMESTAMP NOT NULL,
+    UNIQUE (profile_uuid, address_uuid),
     CONSTRAINT fk_profile_address_xref FOREIGN KEY (profile_uuid) REFERENCES profile(uuid),
     CONSTRAINT fk_address_profile_xref FOREIGN KEY (address_uuid) REFERENCES address(uuid)
 );
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS profile_phone (
     profile_uuid CHAR(36) NOT NULL,
     phone_uuid CHAR(36) NOT NULL,
     created_at TIMESTAMP NOT NULL,
+    UNIQUE (profile_uuid, phone_uuid),
     CONSTRAINT fk_profile_phone_xref FOREIGN KEY (profile_uuid) REFERENCES profile(uuid),
     CONSTRAINT fk_phone_profile_xref FOREIGN KEY (phone_uuid) REFERENCES phone(uuid)
 );

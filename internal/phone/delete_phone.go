@@ -36,6 +36,18 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
 	}
 
+	// validate user claims exist in the auth context
+	if authCtx.UserClaims == nil {
+		log.Error("auth context missing user claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing user claims")
+	}
+
+	// validate service claims exist in the auth context
+	if authCtx.SvcClaims == nil {
+		log.Error("auth context missing service claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing service claims")
+	}
+
 	// add actors to audit log
 	log = log.
 		With("actor", authCtx.UserClaims.Subject).

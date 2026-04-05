@@ -29,7 +29,7 @@ type ProfileStore interface {
 	CreateProfile(ctx context.Context, profile *sqlc.Profile) error
 
 	// GetProfile retrieves a user profile by its username, without including
-	// address and phone information.  It does not decrypt sensitive fields.
+	// address and phone information.
 	GetProfile(ctx context.Context, username string) (*sqlc.Profile, error)
 
 	// GetCompleteProfile retrieves a slice of rows comprised of a join of the profile record and
@@ -103,7 +103,7 @@ func (ps *profileStore) CreateProfile(ctx context.Context, profile *sqlc.Profile
 	})
 }
 
-// GetProfile retrieves a user profile by its username, without including address and phone information. It does not decrypt sensitive fields.
+// GetProfile retrieves a user profile by its username, without including address and phone information.
 func (ps *profileStore) GetProfile(ctx context.Context, username string) (*sqlc.Profile, error) {
 
 	// get blind index for username
@@ -141,7 +141,7 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 	}
 
 	if len(records) < 1 {
-		return nil, fmt.Errorf("no profile-address-phone record rows found for user %s", username)
+		return nil, sql.ErrNoRows
 	}
 
 	// build profile
@@ -270,8 +270,13 @@ func (ps *profileStore) GetCompleteProfile(ctx context.Context, username string)
 		phones = append(phones, &phone)
 	}
 
+	profilePtr, ok := <-profileCh
+	if !ok {
+		return nil, errors.New("profile channel closed without delivering a decrypted profile")
+	}
+
 	return &CompleteProfile{
-		Profile:   <-profileCh,
+		Profile:   profilePtr,
 		Addresses: addresses,
 		Phones:    phones,
 	}, nil
@@ -293,6 +298,6 @@ func (ps *profileStore) UpdateProfile(ctx context.Context, profile *sqlc.Profile
 	})
 }
 
-func (ps *profileStore) DeleteProfile(ctx context.Context, userIndex string) error {
-	return ps.sql.DeleteProfile(ctx, userIndex)
+func (ps *profileStore) DeleteProfile(ctx context.Context, id string) error {
+	return ps.sql.DeleteProfile(ctx, id)
 }

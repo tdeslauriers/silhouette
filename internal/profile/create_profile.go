@@ -68,15 +68,17 @@ func (ps *profileServer) CreateProfile(ctx context.Context, req *api.CreateProfi
 		return nil, status.Error(codes.Internal, "failed to generate profile ID")
 	}
 
-	// build record
 	now := time.Now().UTC()
+
+	username := strings.TrimSpace(req.GetUsername())
+	nickname := strings.TrimSpace(req.GetNickName())
 
 	record := &sqlc.Profile{
 		Uuid:     id.String(),
-		Username: strings.TrimSpace(req.GetUsername()),
+		Username: username,
 		NickName: sql.NullString{
-			String: strings.TrimSpace(req.GetNickName()),
-			Valid:  len(strings.TrimSpace(req.GetNickName())) > 0,
+			String: nickname,
+			Valid:  len(nickname) > 0,
 		},
 		DarkMode:  true, // default since there is no light mode rn
 		CreatedAt: now,
@@ -94,8 +96,8 @@ func (ps *profileServer) CreateProfile(ctx context.Context, req *api.CreateProfi
 
 	// build response
 	return &api.Profile{
-		Username:  record.Username,
-		NickName:  proto.String(record.NickName.String),
+		Username:  username,
+		NickName:  proto.String(nickname),
 		DarkMode:  record.DarkMode,
 		UpdatedAt: timestamppb.New(record.UpdatedAt),
 		CreatedAt: timestamppb.New(record.CreatedAt),

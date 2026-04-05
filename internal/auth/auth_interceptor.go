@@ -71,8 +71,12 @@ func (a *authInterceptor) Unary() grpc.UnaryServerInterceptor {
 		}
 
 		// get service authorization bearer token from from metadata/headers
-		// dont need to check for self-access-allowed, so can use BuildAuthorized from carapace
 		svcToken := md.Get("service-authorization")
+		if len(svcToken) < 1 {
+			return nil, status.Error(codes.Unauthenticated, "missing service-authorization header")
+		}
+
+		// dont need to check for self-access-allowed, so can use BuildAuthorized from carapace
 		authedSvc, err := a.s2s.BuildAuthorized(authConfig.RequiredScopes, svcToken[0])
 		if err != nil {
 			a.logger.Error("failed to authorize service token", "err", err.Error())
@@ -285,8 +289,10 @@ func AuthorizeRequest(auth *AuthContext, requestedUsername string) error {
 	userScopes := auth.UserClaims.MapScopes()
 
 	// check if user has any of the required scopes
-	if hasRequiredScopes(auth.RequiredScopes, userScopes) {
-		return nil
+	if len(userScopes) > 0 {
+		if hasRequiredScopes(auth.RequiredScopes, userScopes) {
+			return nil
+		}
 	}
 
 	// if user does not have required scopes, check if self access is allowed and
@@ -304,7 +310,7 @@ func AuthorizeRequest(auth *AuthContext, requestedUsername string) error {
 
 	// if self access is allowed, check if the requested username matches
 	// the authorized user's username in the token claims
-	if auth.UserClaims.Subject != requestedUsername {
+	if !strings.EqualFold(auth.UserClaims.Subject, requestedUsername) {
 		return errors.New("for self access, requested username does not match authorized user")
 	}
 

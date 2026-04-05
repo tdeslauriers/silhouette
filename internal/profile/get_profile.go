@@ -9,6 +9,7 @@ import (
 	exo "github.com/tdeslauriers/carapace/pkg/connect/grpc"
 	api "github.com/tdeslauriers/silhouette/api/v1"
 	"github.com/tdeslauriers/silhouette/internal/auth"
+	ph "github.com/tdeslauriers/silhouette/internal/phone"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -34,6 +35,18 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 	if err != nil {
 		log.Error("failed to get auth context", "err", err.Error())
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
+	}
+
+	// validate user claims exist in the auth context
+	if authCtx.UserClaims == nil {
+		log.Error("auth context missing user claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing user claims")
+	}
+
+	// validate service claims exist in the auth context
+	if authCtx.SvcClaims == nil {
+		log.Error("auth context missing service claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing service claims")
 	}
 
 	// add actors to audit log
@@ -96,13 +109,14 @@ func (s *profileServer) GetProfile(ctx context.Context, req *api.GetProfileReque
 	// convert the phone records to the api type
 	phones := make([]*api.Phone, 0, len(record.Phones))
 	for _, phone := range record.Phones {
+
 		phones = append(phones, &api.Phone{
 			Uuid:        phone.Uuid,
 			Slug:        phone.Slug,
 			CountryCode: phone.CountryCode.String,
 			PhoneNumber: phone.PhoneNumber.String,
 			Extension:   proto.String(phone.Extension.String),
-			PhoneType:   api.PhoneType(api.PhoneType_value[phone.PhoneType.String]),
+			PhoneType:   api.PhoneType(ph.ConvertPhoneType(phone.PhoneType.String)),
 			IsCurrent:   phone.IsCurrent,
 			IsPrimary:   phone.IsPrimary,
 			UpdatedAt:   timestamppb.New(phone.UpdatedAt),

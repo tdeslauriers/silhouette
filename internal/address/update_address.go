@@ -40,6 +40,18 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
 	}
 
+	// validate user claims exist in the auth context
+	if authCtx.UserClaims == nil {
+		log.Error("auth context missing user claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing user claims")
+	}
+
+	// validate service claims exist in the auth context
+	if authCtx.SvcClaims == nil {
+		log.Error("auth context missing service claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing service claims")
+	}
+
 	// add actors to audit log
 	log = log.
 		With("actor", authCtx.UserClaims.Subject).
@@ -151,37 +163,16 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 		// is allowed without validation since user can have multiple non-primary records
 		updated.IsPrimary = false
 	case req.GetIsPrimary() && !record.IsPrimary:
-		// if primary is being added, validate there are no other primary records for the user
-		addresses, err := as.addressStore.GetAddressesByUser(ctx, username)
+
+		count, err := as.addressStore.CountPrimaryAddresses(ctx, username)
 		if err != nil {
-			log.Error(fmt.Sprintf("failed to get address records for user %s", username), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get address records for user: %s", username))
+			log.Error(fmt.Sprintf("failed to get primary address count for user %s during update of slug %s", username, slug), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary address count for user %s during update of slug %s", username, slug))
 		}
 
-		// error of no addresses found should not be possible since the record being updated belongs to the user, but handle just in case
-		if len(addresses) < 1 {
-			log.Error(fmt.Sprintf("no address records found for user %s during primary address update validation", username))
-			return nil, status.Error(codes.Internal, fmt.Sprintf("no address records found for user %s during primary address update validation", username))
-		}
-
-		// if there is only one address record then it can be made primary without a loop check
-		// Still: sanity check to validate the slugs match before updating primary status
-		if len(addresses) == 1 {
-			if addresses[0].Slug != slug {
-				log.Error(fmt.Sprintf("data integrity issue detected for user %s - address slug %s not found in user's address records during primary address update", username, slug))
-				return nil, status.Error(codes.Internal, "data integrity issue detected during primary address update")
-			}
-			updated.IsPrimary = true
-			break
-		}
-
-		// loop thru addresses to validate no other primary records exist for the user,
-		// excluding the current record being updated
-		for _, address := range addresses {
-			if address.IsPrimary && address.Slug != slug {
-				log.Error(fmt.Sprintf("primary address record already exists for %s - slug: %s", username, address.Slug))
-				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s", username))
-			}
+		if count > 0 {
+			log.Error(fmt.Sprintf("primary address record already exists for user %s - cannot update slug %s to primary", username, slug))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for user %s - cannot update slug %s to primary", username, slug))
 		}
 
 		updated.IsPrimary = true

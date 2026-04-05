@@ -37,6 +37,18 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		return nil, status.Error(codes.Unauthenticated, "failed to get auth context")
 	}
 
+	// validate user claims exist in the auth context
+	if authCtx.UserClaims == nil {
+		log.Error("auth context missing user claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing user claims")
+	}
+
+	// validate service claims exist in the auth context
+	if authCtx.SvcClaims == nil {
+		log.Error("auth context missing service claims")
+		return nil, status.Error(codes.Unauthenticated, "auth context missing service claims")
+	}
+
 	// add actors to audit log
 	log = log.
 		With("actor", authCtx.UserClaims.Subject).
@@ -107,7 +119,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 
 	now := time.Now().UTC()
 
-	record := &sqlc.Address{
+	toAdd := &sqlc.Address{
 		Uuid: id.String(),
 		Slug: slug.String(),
 		// SlugIndex not needed for update
@@ -125,14 +137,17 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 	// need to check if the new record is set to primary and
 	// if so, make sure there are no other primary records
 	switch {
-	case !record.IsCurrent && !req.GetIsPrimary():
+	case !toAdd.IsCurrent && !req.GetIsPrimary():
 		// if the new record is non-current and non-primary, do nothing - this is valid
-		record.IsPrimary = false
-	case !record.IsCurrent && req.GetIsPrimary():
+		toAdd.IsPrimary = false
+	case toAdd.IsCurrent && !req.GetIsPrimary():
+		// if the new record is current and non-primary, do nothing - this is valid
+		toAdd.IsPrimary = false
+	case !toAdd.IsCurrent && req.GetIsPrimary():
 		// cannot create a non current record as primary - this is invalid
 		log.Error(fmt.Sprintf("invalid address record for %s - non-current record cannot be primary", username))
 		return nil, status.Error(codes.InvalidArgument, "invalid address record - non-current record cannot be primary")
-	case record.IsCurrent && req.GetIsPrimary():
+	case toAdd.IsCurrent && req.GetIsPrimary():
 		// user should not have current primary address records
 
 		// get count of how many primary address records exist for the user
@@ -147,17 +162,17 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary address record already exists for %s - cannot create another primary record", username))
 		}
 
-		record.IsPrimary = true
+		toAdd.IsPrimary = true
 	}
 
 	// sanity check: ensure final state does not include primary == true and is_current == false - this is invalid
-	if record.IsPrimary && !record.IsCurrent {
+	if toAdd.IsPrimary && !toAdd.IsCurrent {
 		log.Error(fmt.Sprintf("invalid address record for %s - non-current record cannot be primary", username))
 		return nil, status.Error(codes.InvalidArgument, "invalid address record - non-current record cannot be primary")
 	}
 
 	// persist address record
-	if err := as.addressStore.CreateAddress(ctx, record); err != nil {
+	if err := as.addressStore.CreateAddress(ctx, toAdd); err != nil {
 		log.Error(fmt.Sprintf("failed to create address record for %s", username), "err", err.Error())
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address record for %s", username))
 	}
@@ -165,7 +180,7 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 	log.Info(fmt.Sprintf("successfuly persisted address record - slug %s for %s", slug, username))
 
 	// persist xref record
-	if err := as.xrefStore.CreateProfileAddressXref(ctx, profile.Uuid, record.Uuid); err != nil {
+	if err := as.xrefStore.CreateProfileAddressXref(ctx, profile.Uuid, toAdd.Uuid); err != nil {
 		log.Error(fmt.Sprintf("failed to create address xref record for %s", username), "err", err.Error())
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create address xref record for %s", username))
 	}
@@ -183,9 +198,9 @@ func (as *addressServer) CreateAddress(ctx context.Context, req *api.CreateAddre
 		StateProvince:   stateProvince,
 		PostalCode:      postalCode,
 		Country:         country,
-		IsCurrent:       record.IsCurrent,
-		IsPrimary:       record.IsPrimary,
-		UpdatedAt:       timestamppb.New(record.UpdatedAt),
-		CreatedAt:       timestamppb.New(record.CreatedAt),
+		IsCurrent:       toAdd.IsCurrent,
+		IsPrimary:       toAdd.IsPrimary,
+		UpdatedAt:       timestamppb.New(toAdd.UpdatedAt),
+		CreatedAt:       timestamppb.New(toAdd.CreatedAt),
 	}, nil
 }

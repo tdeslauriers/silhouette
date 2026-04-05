@@ -162,8 +162,18 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 		return fmt.Errorf("address record encryption errors: %v", errors.Join(errs...))
 	}
 
-	address.Slug = <-slugCh
-	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
+	if slug, ok := <-slugCh; ok {
+		address.Slug = slug
+	} else {
+		// should never happen since empty slug should error out, but just in case
+		address.Slug = ""
+	}
+
+	if line1, ok := <-line1Ch; ok {
+		address.AddressLine1 = sql.NullString{String: line1, Valid: true}
+	} else {
+		address.AddressLine1 = sql.NullString{String: "", Valid: false}
+	}
 
 	line2, ok := <-line2Ch
 	if ok {
@@ -172,10 +182,29 @@ func (ac *addressCryptor) EncryptAddress(address *sqlc.Address) error {
 		address.AddressLine2 = sql.NullString{String: "", Valid: false}
 	}
 
-	address.City = sql.NullString{String: <-cityCh, Valid: true}
-	address.State = sql.NullString{String: <-stateCh, Valid: true}
-	address.Zip = sql.NullString{String: <-zipCh, Valid: true}
-	address.Country = sql.NullString{String: <-countryCh, Valid: true}
+	if city, ok := <-cityCh; ok {
+		address.City = sql.NullString{String: city, Valid: true}
+	} else {
+		address.City = sql.NullString{String: "", Valid: false}
+	}
+
+	if state, ok := <-stateCh; ok {
+		address.State = sql.NullString{String: state, Valid: true}
+	} else {
+		address.State = sql.NullString{String: "", Valid: false}
+	}
+
+	if zip, ok := <-zipCh; ok {
+		address.Zip = sql.NullString{String: zip, Valid: true}
+	} else {
+		address.Zip = sql.NullString{String: "", Valid: false}
+	}
+
+	if country, ok := <-countryCh; ok {
+		address.Country = sql.NullString{String: country, Valid: true}
+	} else {
+		address.Country = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }
@@ -232,8 +261,6 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		line2Ch <- ""
 	}
 
 	if address.City.Valid {
@@ -307,8 +334,17 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 		return fmt.Errorf("address record decryption errors: %v", errors.Join(errs...))
 	}
 
-	address.Slug = <-slugCh
-	address.AddressLine1 = sql.NullString{String: <-line1Ch, Valid: true}
+	if slug, ok := <-slugCh; ok {
+		address.Slug = slug
+	} else {
+		address.Slug = ""
+	}
+
+	if line1, ok := <-line1Ch; ok {
+		address.AddressLine1 = sql.NullString{String: line1, Valid: true}
+	} else {
+		address.AddressLine1 = sql.NullString{String: "", Valid: false}
+	}
 
 	line2, ok := <-line2Ch
 	if ok {
@@ -317,10 +353,29 @@ func (ac *addressCryptor) DecryptAddress(address *sqlc.Address) error {
 		address.AddressLine2 = sql.NullString{String: "", Valid: false}
 	}
 
-	address.City = sql.NullString{String: <-cityCh, Valid: true}
-	address.State = sql.NullString{String: <-stateCh, Valid: true}
-	address.Zip = sql.NullString{String: <-zipCh, Valid: true}
-	address.Country = sql.NullString{String: <-countryCh, Valid: true}
+	if city, ok := <-cityCh; ok {
+		address.City = sql.NullString{String: city, Valid: true}
+	} else {
+		address.City = sql.NullString{String: "", Valid: false}
+	}
+
+	if state, ok := <-stateCh; ok {
+		address.State = sql.NullString{String: state, Valid: true}
+	} else {
+		address.State = sql.NullString{String: "", Valid: false}
+	}
+
+	if zip, ok := <-zipCh; ok {
+		address.Zip = sql.NullString{String: zip, Valid: true}
+	} else {
+		address.Zip = sql.NullString{String: "", Valid: false}
+	}
+
+	if country, ok := <-countryCh; ok {
+		address.Country = sql.NullString{String: country, Valid: true}
+	} else {
+		address.Country = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }

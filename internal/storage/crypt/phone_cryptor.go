@@ -126,25 +126,35 @@ func (pc *phoneCryptor) EncryptPhone(phone *sqlc.Phone) error {
 		return fmt.Errorf("phone record encryption errors: %v", errors.Join(errs...))
 	}
 
-	phone.Slug = <-slugCh
+	if slug, ok := <-slugCh; ok {
+		phone.Slug = slug
+	} else {
+		phone.Slug = ""
+	}
 
-	cc, ok := <-countryCodeCh
-	if ok {
+	if cc, ok := <-countryCodeCh; ok {
 		phone.CountryCode = sql.NullString{String: cc, Valid: true}
 	} else {
 		phone.CountryCode = sql.NullString{String: "", Valid: false}
 	}
 
-	phone.PhoneNumber = sql.NullString{String: <-phNumberCh, Valid: true}
+	if phNumber, ok := <-phNumberCh; ok {
+		phone.PhoneNumber = sql.NullString{String: phNumber, Valid: true}
+	} else {
+		phone.PhoneNumber = sql.NullString{String: "", Valid: false}
+	}
 
-	ext, ok := <-extCh
-	if ok {
+	if ext, ok := <-extCh; ok {
 		phone.Extension = sql.NullString{String: ext, Valid: true}
 	} else {
 		phone.Extension = sql.NullString{String: "", Valid: false}
 	}
 
-	phone.PhoneType = sql.NullString{String: <-phTypeCh, Valid: true}
+	if phType, ok := <-phTypeCh; ok {
+		phone.PhoneType = sql.NullString{String: phType, Valid: true}
+	} else {
+		phone.PhoneType = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }
@@ -212,8 +222,6 @@ func (pc *phoneCryptor) DecryptPhone(phone *sqlc.Phone) error {
 			errCh,
 			&wg,
 		)
-	} else {
-		extCh <- ""
 	}
 
 	if phone.PhoneType.Valid {
@@ -246,11 +254,40 @@ func (pc *phoneCryptor) DecryptPhone(phone *sqlc.Phone) error {
 		return fmt.Errorf("phone record decryption errors: %v", errors.Join(errs...))
 	}
 
-	phone.Slug = <-slugCh
-	phone.CountryCode = sql.NullString{String: <-countryCodeCh, Valid: true}
-	phone.PhoneNumber = sql.NullString{String: <-phNumberCh, Valid: true}
-	phone.Extension = sql.NullString{String: <-extCh, Valid: true}
-	phone.PhoneType = sql.NullString{String: <-phTypeCh, Valid: true}
+	// get decrypted slug from channel
+	if slug, ok := <-slugCh; ok {
+		phone.Slug = slug
+	} else {
+		phone.Slug = ""
+	}
+
+	// get decrypted country code from channel
+	if cc, ok := <-countryCodeCh; ok {
+		phone.CountryCode = sql.NullString{String: cc, Valid: true}
+	} else {
+		phone.CountryCode = sql.NullString{String: "", Valid: false}
+	}
+
+	// get decrypted country code from channel
+	if phNumber, ok := <-phNumberCh; ok {
+		phone.PhoneNumber = sql.NullString{String: phNumber, Valid: true}
+	} else {
+		phone.PhoneNumber = sql.NullString{String: "", Valid: false}
+	}
+
+	// get decrypted extension from channel if exists since its optional
+	if ext, ok := <-extCh; ok {
+		phone.Extension = sql.NullString{String: ext, Valid: true}
+	} else {
+		phone.Extension = sql.NullString{String: "", Valid: false}
+	}
+
+	// get decrypted phone type from channel if exists since its optional
+	if phType, ok := <-phTypeCh; ok {
+		phone.PhoneType = sql.NullString{String: phType, Valid: true}
+	} else {
+		phone.PhoneType = sql.NullString{String: "", Valid: false}
+	}
 
 	return nil
 }

@@ -83,7 +83,14 @@ func (pc *profileCryptor) EncryptProfile(profile *sqlc.Profile) error {
 		return fmt.Errorf("profile record encryption errors: %v", errors.Join(errs...))
 	}
 
-	profile.Username = <-usernameCh
+	// username is required, so we can assume it will be present in the channel
+	// but good practice to check anyway
+	username, ok := <-usernameCh
+	if !ok {
+		return errors.New("username field encryption failed and did not return a value")
+	} else {
+		profile.Username = username
+	}
 
 	// nickname is optional
 	nickname, ok := <-nicknameCh
@@ -146,9 +153,15 @@ func (pc *profileCryptor) DecryptProfile(profile *sqlc.Profile) error {
 		return fmt.Errorf("profile record decryption errors: %v", errors.Join(errs...))
 	}
 
-	profile.Username = <-usernameCh
+	// get username from channel
+	username, ok := <-usernameCh
+	if !ok {
+		return errors.New("username field decryption failed and did not return a value")
+	} else {
+		profile.Username = username
+	}
 
-	// nickname is optional
+	// nickname is optional, get from channel if exists
 	nickname, ok := <-nicknameCh
 	if ok {
 		profile.NickName = sql.NullString{String: nickname, Valid: true}

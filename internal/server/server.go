@@ -27,7 +27,6 @@ import (
 	"github.com/tdeslauriers/silhouette/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/reflection"
 )
 
 type Server interface {
@@ -132,7 +131,7 @@ type server struct {
 func (s *server) Run() error {
 
 	// set up tls
-	s.serverTls.MinVersion = tls.VersionTLS12
+	s.serverTls.MinVersion = tls.VersionTLS13
 	tlsCreds := credentials.NewTLS(s.serverTls)
 
 	// instantiate auth interceptor
@@ -166,9 +165,6 @@ func (s *server) Run() error {
 	api.RegisterProfilesServer(grpcServer, profile.NewProfileServer(
 		s.profileStore,
 	))
-
-	// enable grpc reflection if configured
-	reflection.Register(grpcServer)
 
 	listener, err := net.Listen("tcp", s.cfg.ServicePort)
 	if err != nil {
