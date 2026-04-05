@@ -157,35 +157,15 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 		updated.IsPrimary = false
 	case req.GetIsPrimary() && !record.IsPrimary:
 		// if primary is being added, need to validate there are no other primary records for the user
-		phones, err := ps.phoneStore.GetPhonesByUser(ctx, username)
+		count, err := ps.phoneStore.CountPrimaryPhones(ctx, username)
 		if err != nil {
-			log.Error(fmt.Sprintf("failed to get phone records for user %s during primary phone update validation", username), "err", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get phone records for user %s during primary phone update validation", username))
+			log.Error(fmt.Sprintf("failed to get primary phone count for %s", username), "err", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get primary phone count for %s", username))
 		}
 
-		// error if no phones found should not be possible since the record being updated belongs to the user, but handle just in case
-		if len(phones) < 1 {
-			log.Error(fmt.Sprintf("no phone records found for user %s during primary phone update validation", username))
-			return nil, status.Error(codes.Internal, fmt.Sprintf("no phone records found for user %s during primary phone update validation", username))
-		}
-
-		// if there is only one record then it can be made primary without validation
-		// Still: sanity check to make sure the slugs match before updating
-		if len(phones) == 1 {
-			if phones[0].Slug != slug {
-				log.Error(fmt.Sprintf("phone slug %s record not found for user %s during primary phone update validation", slug, username))
-				return nil, status.Error(codes.NotFound, fmt.Sprintf("phone record not found for slug: %s during primary phone update validation", slug))
-			}
-			updated.IsPrimary = true
-			break
-		}
-
-		// loop thru phone records to validate no other primary records exist for the user
-		for _, p := range phones {
-			if p.IsPrimary && p.Slug != slug {
-				log.Error(fmt.Sprintf("primary phone record already exists for user %s during primary phone update validation - slug: %s", username, p.Slug))
-				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("primary phone record already exists for user %s during primary phone update validation", username))
-			}
+		if count > 0 {
+			log.Error(fmt.Sprintf("primary phone record already exists for %s - cannot set another record as primary", username))
+			return nil, status.Error(codes.InvalidArgument, "primary phone record already exists - cannot set another record as primary")
 		}
 
 		updated.IsPrimary = true
