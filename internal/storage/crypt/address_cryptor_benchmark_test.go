@@ -21,17 +21,17 @@ func setupCryptor() data.Cryptor {
 	return data.NewServiceAesGcmKey(key)
 }
 
-// createSampleAddress creates a sample address with all fields populated
+// createSampleAddress creates a sample address with Star Wars themed fields
 func createSampleAddress() *sqlc.Address {
 	return &sqlc.Address{
-		Uuid:         "test-uuid",
-		Slug:         "test-slug",
-		AddressLine1: sql.NullString{String: "123 Main St", Valid: true},
-		AddressLine2: sql.NullString{String: "Apt 4B", Valid: true},
-		City:         sql.NullString{String: "Anytown", Valid: true},
-		State:        sql.NullString{String: "CA", Valid: true},
-		Zip:          sql.NullString{String: "12345", Valid: true},
-		Country:      sql.NullString{String: "USA", Valid: true},
+		Uuid:         "darth-vader-uuid",
+		Slug:         "death-star-base",
+		AddressLine1: sql.NullString{String: "Death Star Control Room", Valid: true},
+		AddressLine2: sql.NullString{String: "Sector 7G", Valid: true},
+		City:         sql.NullString{String: "Coruscant", Valid: true},
+		State:        sql.NullString{String: "Galactic Empire", Valid: true},
+		Zip:          sql.NullString{String: "DS-001", Valid: true},
+		Country:      sql.NullString{String: "Outer Rim Territories", Valid: true},
 		IsCurrent:    true,
 		IsPrimary:    true,
 		UpdatedAt:    time.Now(),
