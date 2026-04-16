@@ -102,7 +102,7 @@ type PhoneUpsert interface {
 // ValidateCmd validates the fields of a PhoneUpsert request model.
 func ValidateCmd(cmd PhoneUpsert) error {
 
-	if err := validate.IsValidEmail(cmd.GetUsername()); err != nil {
+	if err := validate.ValidateEmail(cmd.GetUsername()); err != nil {
 		return err
 	}
 

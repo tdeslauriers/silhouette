@@ -54,7 +54,7 @@ type AddressUpsert interface {
 func ValidateCmd(cmd AddressUpsert) error {
 
 	// validate email
-	if err := validate.IsValidEmail(cmd.GetUsername()); err != nil {
+	if err := validate.ValidateEmail(cmd.GetUsername()); err != nil {
 		return err
 	}
 

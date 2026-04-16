@@ -74,7 +74,7 @@ func (as *addressServer) UpdateAddress(ctx context.Context, req *api.UpdateAddre
 	}
 
 	// validate slug since not accounted for in cmd validation
-	if !validate.IsValidUuid(slug) {
+	if err := validate.ValidateUuid(slug); err != nil {
 		log.Error("invalid address slug", "err", "address slug must be a valid UUID")
 		return nil, status.Error(codes.InvalidArgument, "address slug must be a valid UUID")
 	}

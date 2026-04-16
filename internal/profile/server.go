@@ -42,7 +42,7 @@ type ProfileUpsert interface {
 func ValidateCmd(cmd ProfileUpsert) error {
 
 	// validate email
-	if err := validate.IsValidEmail(strings.TrimSpace(cmd.GetUsername())); err != nil {
+	if err := validate.ValidateEmail(strings.TrimSpace(cmd.GetUsername())); err != nil {
 		return err
 	}
 

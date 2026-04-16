@@ -60,7 +60,7 @@ func (ps *phoneServer) DeletePhone(ctx context.Context, req *api.DeletePhoneRequ
 	}
 
 	// validate fields in request
-	if !validate.IsValidUuid(strings.TrimSpace(req.GetPhoneSlug())) {
+	if err := validate.ValidateUuid(strings.TrimSpace(req.GetPhoneSlug())); err != nil {
 		log.Error("invalid phone slug", "err", "phone slug must be a valid UUID")
 		return nil, status.Error(codes.InvalidArgument, "phone slug must be a valid UUID")
 	}

@@ -60,7 +60,7 @@ func (s *addressServer) DeleteAddress(ctx context.Context, req *api.DeleteAddres
 	}
 
 	// validate the slug
-	if !validate.IsValidUuid(strings.TrimSpace(req.GetSlug())) {
+	if err := validate.ValidateUuid(strings.TrimSpace(req.GetSlug())); err != nil {
 		log.Error("invalid address slug", "err", "address slug must be a valid UUID")
 		return nil, status.Error(codes.InvalidArgument, "address slug must be a valid UUID")
 	}

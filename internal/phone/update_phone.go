@@ -74,7 +74,7 @@ func (ps *phoneServer) UpdatePhone(ctx context.Context, req *api.UpdatePhoneRequ
 	}
 
 	// validate slug since not accounted for in cmd validation
-	if !validate.IsValidUuid(strings.TrimSpace(slug)) {
+	if err := validate.ValidateUuid(strings.TrimSpace(slug)); err != nil {
 		log.Error("invalid phone slug", "err", "phone slug must be a valid UUID")
 		return nil, status.Error(codes.InvalidArgument, "phone slug must be a valid UUID")
 	}
