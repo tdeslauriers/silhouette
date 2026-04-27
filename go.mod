@@ -1,6 +1,6 @@
 module github.com/tdeslauriers/silhouette
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
@@ -14,7 +14,7 @@ require (
 )
 
 require (
-	github.com/tdeslauriers/carapace v0.4.0
+	github.com/tdeslauriers/carapace v0.4.3
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
