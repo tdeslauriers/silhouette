@@ -73,7 +73,10 @@ func New(cfg *config.Config) (Server, error) {
 	}
 
 	// set up indexer to create blind indexes for encrypted data tables
-	indexer := data.NewIndexer([]byte(cfg.Database.IndexSecret))
+	indexer, err := data.NewIndexer([]byte(cfg.Database.IndexSecret))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create indexer: %v", err)
+	}
 
 	// set up field level encryption
 	aes, err := base64.StdEncoding.DecodeString(cfg.Database.FieldSecret)
@@ -81,7 +84,10 @@ func New(cfg *config.Config) (Server, error) {
 		return nil, fmt.Errorf("failed to decode field level encryption key Env var: %v", err)
 	}
 
-	cryptor := data.NewServiceAesGcmKey(aes)
+	cryptor, err := data.NewServiceAesGcmKey(aes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create field level encryption cryptor: %v", err)
+	}
 
 	// s2s jwt verifing key
 	s2sPublicKey, err := sign.ParsePublicEcdsaCert(cfg.Jwt.S2sVerifyingKey)

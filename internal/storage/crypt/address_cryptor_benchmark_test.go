@@ -18,7 +18,9 @@ import (
 func setupCryptor() data.Cryptor {
 	// Use a fixed key for consistent benchmarking
 	key := []byte("12345678901234567890123456789012") // 32 bytes for AES-256
-	return data.NewServiceAesGcmKey(key)
+	cryptor, _ := data.NewServiceAesGcmKey(key)
+
+	return cryptor
 }
 
 // createSampleAddress creates a sample address with Star Wars themed fields
